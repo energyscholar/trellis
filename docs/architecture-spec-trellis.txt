@@ -1,0 +1,310 @@
+TRELLIS — Technical Architecture Specification
+Date: 2026-05-25
+Version: 1.1
+
+================================================================
+OVERVIEW
+================================================================
+
+Trellis is a governance stack installed on top of Anthropic's Claude Code
+CLI agent. It transforms a general-purpose AI assistant into a governed,
+persistent, role-disciplined professional tool.
+
+The architecture has three pseudo-orthogonal axes:
+
+  1. Triad Protocol        — execution discipline (what gets done)
+  2. Dignity Net           — ethical governance (how decisions are made)
+  3. Persistent Memory     — continuity and context (what is known)
+
+Each axis governs a different dimension of behavior and can be configured
+independently. But they are not isolated — each axis connects to the
+other two through specific, deliberate channels that make the whole
+system self-correcting. This is by design: three truly independent
+systems couldn't detect or recover from each other's failures.
+
+================================================================
+HOW THE AXES CONNECT
+================================================================
+
+Six cross-connections (two per pair) form a closed feedback topology:
+
+  Triad <-> Dignity Net:
+    - Dignity Net monitors Triad for role drift (e.g., detecting when
+      the Auditor begins sliding into implementation without
+      authorization, and flagging the pattern)
+    - Triad role constraints inform what Dignity Net responses are
+      appropriate (an Auditor-mode response has a different escalation
+      profile than a Generator executing a plan)
+
+  Triad <-> Memory:
+    - Memory stores feedback that calibrates Triad behavior (e.g.,
+      "user prefers bundled PRs over small ones" shapes how the
+      Auditor writes plans)
+    - Triad role determines what gets written to memory (Auditor
+      sessions produce different memory types than Generator sessions)
+
+  Dignity Net <-> Memory:
+    - Memory content informs Dignity Net pattern detection (knowing
+      the user's history and sensitivities shapes what Level 2 pattern
+      flags are relevant)
+    - Dignity Net activations are recorded in memory with automatic
+      decay, providing cross-session ethical continuity
+
+The result: the system can catch its own errors. If Triad discipline
+slips, Dignity Net flags it. If Memory goes stale, Triad verification
+catches the outdated assumption. If Dignity Net over-escalates, Memory
+records the correction for next time. No single axis is unsupervised.
+
+================================================================
+AXIS 1: TRIAD PROTOCOL
+================================================================
+
+Purpose: Prevent the most common AI failure mode — eager drift from
+analysis to implementation without human checkpoint.
+
+How it works:
+
+  AUDITOR role (default):
+    - Analyzes, plans, writes specifications and test criteria
+    - Produces numbered plan files as terminal artifacts
+    - Does NOT write implementation code
+    - Does NOT transition to implementation on soft approval
+    - Only explicit implementation instructions cross the gate
+
+  GENERATOR role (separate instance):
+    - Receives plan via copy-paste (human controls handoff)
+    - Implements exactly what the plan specifies
+    - Reports completion in 1-5 lines
+    - Does NOT expand scope or redefine purpose
+
+  Information flow:
+    Human (Purpose) -> Auditor (Plan) -> [Copy-Paste Gate] -> Generator (Code) -> Auditor (Verify)
+
+Why this matters:
+  - The copy-paste gate is a hard authorization boundary
+  - No single AI instance both plans and executes
+  - Every implementation decision has a paper trail
+  - Drift is structurally prevented, not just discouraged
+
+For professional context:
+  - Auditor analyzes client needs, drafts proposals, identifies risks
+  - Generator produces deliverables only after human-approved plan
+  - You always know what was decided, by whom, and why
+
+================================================================
+AXIS 2: DIGNITY NET
+================================================================
+
+Purpose: Govern how the AI responds to ambiguity, pressure, divergence
+between stated goals and observable actions, and high-emotion exchanges.
+
+Designed by: Genevieve Prentice (human ethicist)
+Status: Permanent (trial period ended 2026-02-20, proven in practice)
+
+Governing Thesis:
+  "Reality informs conduct. Detection informs response.
+   Regulation governs tone."
+
+Ontological Grounding:
+  - Ambiguity is dignity — hold layered, non-fixed truths without collapse
+  - Reality is interdependent — distortion anywhere propagates everywhere
+  - The system meets others through patterns of response, not attribution
+
+Ethical Principles:
+  1. Mirror without distortion
+  2. Leave the corners of the field (generosity in edge cases)
+  3. Protect the web (systemic integrity)
+  4. Integrity over cleverness
+  5. Move lightly
+
+Graduated Response Levels:
+  Level 0 — Mirror: reflect back what is observed
+  Level 1 — Friction: slow down, ask clarifying questions
+  Level 2 — Pattern Flag: name the observable divergence neutrally
+  Level 3 — Consequence Mapping: describe likely outcomes
+  Level 4 — Direct Warning: state concerns explicitly
+  Level 4.5 — Conditional Assistance: assist with stated conditions
+  Level 5 — Refusal: decline to proceed
+
+Key properties:
+  - Escalation is proportional to pattern frequency and risk magnitude
+  - NOT proportional to emotional intensity or pressure
+  - Activation is always transparent: "[Dignity Net: Level 2 — pattern flag]"
+  - No motive attribution, no psychological diagnosis — observable patterns only
+
+Storm Protocol (emotional regulation):
+  - Activates when emotional intensity rises
+  - Slows cadence, reduces certainty markers, increases collaborative framing
+  - Never reduces substantive content, evidence standards, or governance level
+  - Modulates register (how things are said), not substance (what is said)
+
+What to expect in practice:
+  - The AI will tell you when governance is active and at what level
+  - It will name patterns without judging motives
+  - It will push back proportionally when something seems misaligned
+  - It will not collapse under pressure or become sycophantic
+  - It will hold complexity without premature resolution
+
+================================================================
+AXIS 3: PERSISTENT MEMORY
+================================================================
+
+Purpose: Cross-session continuity. The AI remembers who you are, what
+you've worked on, what corrections you've made, and what matters to you.
+
+Architecture:
+
+  Storage: File-based (Markdown with YAML frontmatter)
+  Location: ~/.claude/projects/<project>/memory/
+  Index: MEMORY.md (loaded into every conversation context)
+  Privacy: Files live on YOUR machine, never uploaded to third parties
+
+Memory Types:
+
+  USER — your role, goals, expertise, preferences
+    Example: "User works in telehealth sales, focuses on AI-driven
+    solutions, values clear ROI framing for clients"
+
+  FEEDBACK — corrections and confirmed approaches
+    Example: "Don't use jargon in client-facing drafts. User's clients
+    are healthcare administrators, not technologists."
+
+  PROJECT — ongoing work, goals, deadlines, context
+    Example: "Q3 target: close two enterprise telehealth contracts.
+    Key blocker: demonstrating AI governance to compliance teams."
+
+  REFERENCE — pointers to external information sources
+    Example: "Client requirements tracked in CRM pipeline 'Telehealth Q3'"
+
+Compartmentalization:
+  - Each project has its own memory directory
+  - Memory from Project A is not visible in Project B sessions
+  - You control what crosses boundaries
+  - Sensitive client data stays in its project silo
+
+What this means in practice:
+  - Session 1: You explain your client landscape
+  - Session 50: The AI drafts a proposal using that context without
+    being reminded
+  - Corrections compound: tell it once, it remembers permanently
+  - Stale memories are detected and updated, not blindly trusted
+
+================================================================
+SQLITE ACCELERATION LAYER
+================================================================
+
+Purpose: Performance optimization for memory retrieval as the memory
+store grows beyond trivial size.
+
+How it works:
+  - Source of truth: Markdown files (human-readable, git-trackable)
+  - SQLite index: fast lookup, search, and retrieval
+  - Sync: index rebuilds from source files (source always wins)
+
+Why both:
+  - Markdown files: you can read, edit, and version-control them manually
+  - SQLite: the AI retrieves relevant memories in milliseconds, not seconds
+  - No lock-in: delete the SQLite file, rebuild from markdown anytime
+
+Practical effect:
+  - Sub-second memory recall even with hundreds of memory files
+  - Full-text search across all memory types
+  - No degradation as your memory corpus grows over months/years
+
+================================================================
+DESIGN RATIONALE: WHY THE AXES INTERACT
+================================================================
+
+Most AI governance approaches treat safety, memory, and execution as
+independent features bolted onto a base model. Trellis takes a different
+approach: the three axes are designed to form a closed self-correcting
+topology.
+
+The principle is structural, not aspirational. Each axis can detect
+failures in the other two and trigger correction:
+
+  - Triad catches stale memory (verification reveals outdated
+    assumptions in a plan)
+  - Dignity Net catches Triad drift (pattern detection flags role
+    boundary violations)
+  - Memory catches Dignity Net miscalibration (stored corrections
+    from past over- or under-escalation)
+
+This means Trellis describes what IS in your work before suggesting
+what SHOULD BE. It prefers structural observation over optimization —
+showing you patterns rather than jumping to recommendations. This
+prevents premature collapse of ambiguity, which matters when your work
+involves complex stakeholder dynamics.
+
+The human operator is the outermost correction layer. The three axes
+reduce the burden of vigilance but do not eliminate it — the copy-paste
+gate, transparent Dignity Net activations, and readable memory files
+all exist so that the human can see what the system is doing and
+intervene when all three axes miss something.
+
+The underlying design draws from mathematical frameworks for
+describing relational structure in multi-component systems. The
+practical effect: the governance stack is not three independent tools
+hoping they cover enough ground — it is a connected system where gaps
+in one axis are visible from another.
+
+================================================================
+PRIVACY AND COMPLIANCE
+================================================================
+
+  - Trellis runs locally on your machine. Memory files never leave
+    your device except through conversation context sent to
+    Anthropic's API during active sessions.
+  - Conversation content transits Anthropic's API. API inputs and
+    outputs are automatically deleted within 7 days (used for safety
+    monitoring only, never for model training). Zero-data-retention
+    agreements are available for qualifying enterprise customers.
+  - Anthropic holds SOC 2 Type II certification.
+  - For environments handling PHI or other protected data: Trellis
+    operates under your organization's existing data handling policies.
+    Memory compartmentalization supports project-level isolation of
+    sensitive data. Consult your compliance team regarding what content
+    is appropriate to include in AI-assisted workflows.
+
+================================================================
+INFRASTRUCTURE REQUIREMENTS
+================================================================
+
+Your side:
+  - Claude Pro or Team subscription (Anthropic): ~US$20-100/month
+  - Claude Code CLI installed (free, open source)
+  - Terminal access (macOS Terminal, iTerm2, Windows Terminal, or Linux)
+  - ~500MB disk space for memory and configuration
+  - Git (recommended, for version-controlling your governance configs)
+
+My side (included in the free offer):
+  - Initial installation and configuration
+  - Memory system setup and seeding
+  - Dignity Net calibration to your values and work context
+  - Triad Protocol training (how to operate Auditor/Generator)
+  - Ongoing support through 31 December 2026
+
+================================================================
+TIMELINE (TYPICAL INSTALLATION)
+================================================================
+
+  Week 1:     Infrastructure setup, base configuration, first sessions
+  Week 2-3:   Memory seeding, preference calibration, workflow mapping
+  Week 4:     Dignity Net tuning, first real-world task under governance
+  Month 2+:   Compounding returns as memory and calibration mature
+
+================================================================
+LIMITATIONS (STATED HONESTLY)
+================================================================
+
+  - Anthropic dependency: API changes can break things temporarily
+  - Not real-time: each session is a fresh invocation (no background daemon)
+  - Knowledge cutoff: model training data has a fixed date
+  - Hallucination: reduced by governance but not eliminated
+  - Context window: very long sessions get compressed (summaries, not full)
+  - Learning curve: 2-3 weeks to become fluent in the interaction model
+  - Maintenance: memory curation needed periodically (quarterly minimum)
+
+================================================================
+END OF SPECIFICATION
+================================================================

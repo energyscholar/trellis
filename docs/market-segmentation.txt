@@ -1,0 +1,111 @@
+TRELLIS — Market Segmentation Analysis
+Date: 2026-05-26
+Source: External review of demo materials (Claude web evaluation)
+
+================================================================
+POSITIONING
+================================================================
+
+Trellis is not best understood as "an AI enhancement." It is closer
+to "a professional cognitive operating environment."
+
+Its adoption curve resembles version control, test-driven development,
+secure coding practices, lab notebooks, or institutional QA processes:
+at first annoying, niche, overengineered — then later indispensable
+for serious work, especially once projects exceed the cognitive
+capacity of single-session prompting.
+
+================================================================
+TARGET PROPERTIES
+================================================================
+
+Trellis governance is most valuable for work that is:
+
+  - Long-horizon
+  - High-context
+  - Recursive
+  - Error-sensitive
+  - Artifact-heavy
+  - Cognitively integrative
+
+================================================================
+TIER 1: VERY HIGH BENEFIT (~1-3% of users)
+================================================================
+
+Users who experience a dramatic capability jump.
+
+  - Independent researchers
+  - Systems thinkers
+  - Technical founders
+  - Scientific synthesists
+  - Advanced software architects
+  - Institutional strategy people
+  - Technical writers producing book-length work
+  - Complex investigative analysts
+  - R&D groups
+  - Governance/safety researchers
+  - People building long-running conceptual frameworks
+
+These users suffer enormously from drift, forgotten corrections,
+context collapse, inconsistent terminology, hallucinated reframing,
+and loss of epistemic continuity. Trellis directly attacks those
+failure modes.
+
+================================================================
+TIER 2: MODERATE BENEFIT (~5-15% of users)
+================================================================
+
+Users who gain meaningfully but may not fully exploit the system.
+
+  - Lawyers
+  - Compliance-heavy business users
+  - Consultants
+  - Enterprise analysts
+  - Product managers
+  - Telehealth/sales ops
+  - Grant writers
+  - Academic labs
+  - Policy teams
+  - Investigative journalists
+
+They need continuity, disciplined outputs, auditability, persistent
+preferences, and controlled workflows. They may not care about
+ACS/topology at all. They experience Trellis as: "an AI that behaves
+professionally and remembers process." That alone has value.
+
+================================================================
+TIER 3: LOW BENEFIT (~40-60% of users)
+================================================================
+
+Users who gain only incremental improvements.
+
+  - Ordinary coding assistants
+  - Casual writing
+  - Brainstorming
+  - Student homework
+  - Consumer chatbot usage
+  - Quick Q&A
+
+Their sessions are short, low-context, disposable, and not
+continuity-sensitive. The governance overhead may outweigh benefits.
+
+================================================================
+TIER 4: NEGATIVE/RESISTED (~20-40% of users)
+================================================================
+
+Users who would actively dislike it.
+
+  - Users who want maximal AI agreeableness
+  - People who prefer improvisational prompting
+  - Rapid-fire "vibe coding" workflows
+  - Users who dislike friction or governance
+  - People who optimize for novelty over stability
+
+Trellis deliberately imposes discipline, boundary maintenance,
+correction persistence, governance transparency, and reduced impulsive
+generation. Some users will experience that as "less creative" or
+"less fun" — even if operational reliability improves.
+
+================================================================
+END OF ANALYSIS
+================================================================
