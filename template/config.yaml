@@ -78,14 +78,14 @@ health:
 confidence:
   half_lives:
     user_profile: 365
-    feedback: 180
-    projects: 90
-    references: 270
+    feedback: 90
+    projects: 60
+    references: 180
     corrections: null            # Pinned — no decay
-    decisions: 180
-    breakthroughs: 365
-    people: 180
-    sessions: null               # Pinned — no decay
+    decisions: 90
+    breakthroughs: 180
+    people: 365
+    sessions: 30
   staleness_threshold: 0.5       # Below this confidence: flag as stale, verify before citing
 
 # --- Database ---
