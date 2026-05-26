@@ -9,5 +9,20 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Do NOT ignore .trellis/ — it is the product
-!.trellis/
+# DB artifacts (rebuilt from flat files)
+*.db
+*.db-wal
+*.db-shm
+
+# Runtime locks and flags
+.session-active
+.recovering
+.ingest.lock
+.file-hashes
+
+# ANTI-POLLUTION: reject user memory files created in distribution repo
+# Only template/memory/ files are allowed — personal memories belong in ~/.trellis/
+memory/
+corrections.md
+!/template/memory/
+!/template/memory/corrections.md
