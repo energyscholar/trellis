@@ -1,0 +1,131 @@
+# Trellis Configuration
+# All user-controllable parameters live here. Scripts and directives read this file.
+# Paths are relative to TRELLIS_HOME (~/.trellis/) unless absolute.
+
+version: 0.1.0
+
+# --- Identity ---
+# Who this Trellis instance belongs to. Used in commit messages, attribution.
+identity:
+  name: ""
+  email: ""
+  ai_name: ""                    # Name for the AI persona (e.g., "Atlas"). Optional.
+
+# --- Storage ---
+# Tier 0: no git (files only). Tier 1: local git. Tier 2: remote git. Tier 3: encrypted (git-crypt).
+storage:
+  tier: 1
+  remote_url: ""                 # Git remote for T2+. Leave empty to disable push/pull.
+  auto_push: false               # Push to remote on memory-sync (T2+ only)
+  auto_pull: false               # Pull from remote on session start (T2+ only)
+
+# --- Memory ---
+memory:
+  enabled: true
+  memory_dir: memory             # Directory within TRELLIS_HOME for memory files
+  corrections: true              # Track corrections (things the AI gets wrong)
+  session_tracking: true         # Track session summaries
+  health_metrics: true           # Compute health vector at session end
+  ptl: true                      # Prioritized task list
+  breakthroughs: true            # Track reasoning breakthroughs
+
+  # Line/count caps
+  memory_index_cap: 200          # Max lines in MEMORY.md before compression triggers
+  compression_trigger: 180       # Start compressing at this line count
+  max_active_sessions: 2         # Sessions kept in MEMORY.md before archiving
+  max_corrections_l1: 5          # Hot corrections shown in MEMORY.md
+  max_open_threads: 5            # Implicit thread tracking cap
+
+  # Compression stages: FULL -> SUMMARY -> ONE-LINER -> ARCHIVE
+  # Thresholds are confidence values (0.0-1.0) from the decay system
+  compression:
+    full_threshold: 0.5          # Above this: keep full text
+    summary_threshold: 0.2       # Above this: 3-5 line summary
+    oneliner_threshold: 0.05     # Above this: single line. Below: archive to git.
+
+  # OPSEC compartmentation (optional)
+  opsec:
+    enabled: false               # Enable opsec_level field filtering
+    default_level: ""            # Default opsec_level for new records (empty = public)
+
+# --- Plugins ---
+# Governance layers loaded on top of memory. Each is a directory under plugins/.
+plugins:
+  active:
+    - dignity-net
+    - triad
+  plugin_dir: plugins            # Directory within TRELLIS_HOME for plugin manifests
+
+# --- Topology Monitor ---
+# Counts active governance axes. Warns if below threshold.
+# Axes = 1 (memory, always) + count(active plugins).
+topology:
+  enabled: true
+  threshold: 3                   # Minimum axes for full governance. 3 = memory + ethics + structure
+
+# --- Health Metrics ---
+# Thresholds for the health vector [p f v d]. Protocol.md defines actions.
+health:
+  pressure_warn: 0.9             # memory_index lines / memory_index_cap
+  freshness_warn: 1.0            # Days since newest correction violation / 30
+  coverage_target: 1.0           # Fraction of file-map entries that resolve (1.0 = all)
+  drift_warn: 1.0                # Sessions since system review / review_interval
+  review_interval: 10            # Full system review every N sessions
+
+# --- Confidence Decay ---
+# Per-type half-life defaults (days). null = pinned (no decay).
+# These seed the confidence_config table on DB rebuild.
+confidence:
+  half_lives:
+    user_profile: 365
+    feedback: 180
+    projects: 90
+    references: 270
+    corrections: null            # Pinned — no decay
+    decisions: 180
+    breakthroughs: 365
+    people: 180
+    sessions: null               # Pinned — no decay
+  staleness_threshold: 0.5       # Below this confidence: flag as stale, verify before citing
+
+# --- Database ---
+# SQLite acceleration layer. Flat files remain source of truth.
+database:
+  enabled: false                 # Set true to enable DB-backed queries
+  path: trellis.db               # Relative to TRELLIS_HOME
+  fts5: true                     # Full-text search via FTS5
+  rebuild_min_tables: 15         # Minimum table count for rebuild verification
+
+# --- PTL (Prioritized Task List) ---
+ptl:
+  max_items: 60                  # Bandwidth cap
+  decay:
+    t1_demote_days: 7            # T1 untouched this long → demote to T2
+    t2_stale_days: 21            # T2 untouched → STALE
+    t2_archive_days: 42          # T2 untouched → archive
+    t3_stale_days: 28            # T3+ untouched → STALE
+    t3_archive_days: 56          # T3+ untouched → archive
+    needs_plan_stall_days: 56    # NEEDS_PLAN this long → STALLED
+    done_archive_renders: 2      # DONE items archived after this many renders
+
+# --- Platform ---
+# Which AI coding tool this Trellis instance targets.
+# Affects: activation block format, directives assembly, file locations.
+platform:
+  type: claude_code              # claude_code | codex | cursor
+  activation_file: CLAUDE.md     # File where the activation block is written
+  # Codex: AGENTS.md. Cursor: .cursorrules. Claude Code: CLAUDE.md.
+
+# --- Sync ---
+# Settings for memory-sync.sh
+sync:
+  commit_prefix: "Memory sync"   # Prefix for auto-commit messages
+  crlf_check: true               # Warn on CRLF line endings
+  checksum_drift: true           # Track file checksums between syncs
+  lock_timeout: 0                # Seconds to wait for ingest lock (0 = fail immediately)
+
+# --- Maintenance ---
+# Opportunistic self-maintenance settings
+maintenance:
+  max_per_session: 2             # Max maintenance actions per session
+  tutorials: true                # Show methodology tutorials as PTL items
