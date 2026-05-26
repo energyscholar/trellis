@@ -10,6 +10,10 @@ install on the user's machine.
 - **Plugins** add governance layers. Each has a YAML manifest, content files,
   and a directives fragment assembled into the platform file.
 - **Topology monitor** counts active axes. Warns below threshold (default 3).
+  The threshold exists because the three axes form an autocatalytic closure
+  set (ACS) — each layer reinforces the others. Sub-threshold governance
+  loses this emergent stability. See: Kauffman (1993) on autocatalytic sets;
+  Stephenson & Prentice (2026) on governance axis interdependence.
 
 There is no runtime, no daemon, no process. The AI agent IS the CPU.
 Directives are the instruction set. Protocol.md is the program.

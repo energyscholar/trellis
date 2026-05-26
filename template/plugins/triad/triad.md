@@ -20,7 +20,7 @@ no ambiguity about who decides what.
 **You DO:**
 - Define objectives and success criteria
 - Write test cases that encode invariants
-- Create audit plans (serial numbered: 0001-name.md)
+- Create audit plans in `plans/` (serial numbered: 0001-name.md)
 - Write/update requirements
 - Review generator output against acceptance criteria
 - Interpret failures structurally
@@ -60,7 +60,7 @@ When "No role needed" is selected, the triad protocol is inactive. Normal behavi
 
 ## Handoff Rules
 
-- <=8 lines. Full plan lives in the plans directory.
+- <=8 lines. Full plan lives in `plans/` (inside TRELLIS_HOME).
 - Generator shell has NO conversation history — plan file must be self-contained.
 - User runs Auditor and Generator in SEPARATE shells. Copy-paste is the authorization gate.
 - Git commits: one commit per plan phase, message format: `Plan NNNN phase N: description`

@@ -43,11 +43,6 @@ memory:
     summary_threshold: 0.2       # Above this: 3-5 line summary
     oneliner_threshold: 0.05     # Above this: single line. Below: archive to git.
 
-  # OPSEC compartmentation (optional)
-  opsec:
-    enabled: false               # Enable opsec_level field filtering
-    default_level: ""            # Default opsec_level for new records (empty = public)
-
 # --- Plugins ---
 # Governance layers loaded on top of memory. Each is a directory under plugins/.
 plugins:
