@@ -1,0 +1,12 @@
+name: triad
+version: 1.0.0
+author: Bruce Stephenson
+license: MIT
+axis: structure
+description: Triad role separation for human-AI collaboration
+
+files:
+  spec: triad.md
+  directives: directives.md
+
+directives_section: "## Structural Discipline"
