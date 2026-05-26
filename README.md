@@ -1,240 +1,244 @@
 # Trellis
 
-A three-layer governance system for AI coding agents. Provides persistent
-memory (what the system knows), structural role discipline (who decides),
-and ethical constraints (how the system decides).
+**Three-layer governance for AI coding agents.** Memory that persists.
+Structure that separates planning from execution. Ethics that scale with risk.
 
-Most users start it for the memory. They keep it for the stability.
-
----
-
-## What Is This?
-
-AI coding assistants are stateless. Every conversation starts from zero. For a weekend script, that's fine. For a multi-week project with dozens of sessions, hundreds of decisions, and multiple collaborators — it's not workable.
-
-**Trellis** solves this with three independently toggleable governance layers:
-
-- **Memory** — Persistent context across sessions. Corrections, task tracking, decision logs, session summaries. Three-tier cache (L1 always loaded, L2 on demand, L3 via git history).
-- **Structure** — Role separation between planning and execution. An Auditor defines success criteria and plans; a Generator implements exactly what's specified. Prevents scope creep, drift, and self-reinforcing errors.
-- **Ethics** — Proportional behavioral governance. Detects divergence between stated goals and observable actions. Escalates from mirror (level 0) through friction, pattern flags, and consequence mapping to refusal (level 5). Modulates tone under emotional intensity without reducing substance.
-
-Each layer works alone. Together, they produce qualitatively different stability — systems with 3+ constraint dimensions exhibit emergent governance properties that single-axis systems cannot.
-
-**Evidence base (honest):** n=1 positive (80+ sessions, 0 catastrophic failures after governance established, 24 corrections with near-zero repeat violations). n=28 negative (documented failures in systems without governance). Suggestive, not conclusive.
+Install Trellis from `https://github.com/energyscholar/trellis` — paste that
+sentence into Claude Code, Codex, or Cursor. The AI does the rest.
 
 ---
 
-## Quickstart
+## What Is Trellis?
 
-### Stage 1: Start Here (5 minutes)
+AI coding assistants are stateless. Every conversation starts from zero.
+Trellis gives them persistent memory, structural discipline, and ethical
+governance — installed once on your machine, active across all projects.
 
-**New project:**
+**Memory** (built-in, always active): Corrections, session summaries,
+decisions, contacts, task tracking. The AI maintains its own context.
+Errors you correct once stay corrected.
+
+**Structure** (Triad plugin): Role separation. The Auditor plans, the
+Generator implements. No role collapse, no scope creep. Copy-paste is
+the authorization gate between them.
+
+**Ethics** (Dignity Net plugin): Proportional response from mirror to
+refusal. Divergence detection without motive attribution. Storm protocol
+for high-intensity exchanges.
+
+The topology monitor counts active layers. Below threshold, it warns —
+sub-threshold governance won't produce the stability you installed Trellis for.
+
+---
+
+## Install
+
+### Fresh Install
+
+Paste into your AI coding assistant:
+
+> Install Trellis from https://github.com/energyscholar/trellis
+
+The AI will:
+1. Clone the repo to a temp directory
+2. Copy `template/` to `~/.trellis/`
+3. Initialize a local git repo (Tier 1)
+4. Wire the activation block into your platform config
+5. Ask your name and what you're working on
+
+Total time: under 5 minutes. See [docs/install.md](docs/install.md) for
+edge cases and custom paths.
+
+### Restore from Backup
+
+Already have a Trellis backup on GitHub (Tier 2+)?
+
 ```bash
-git clone https://github.com/energyscholar/trellis.git my-project
-cd my-project
+git clone git@github.com:YOU/my-trellis.git ~/.trellis
 ```
-Or use GitHub's "Use this template" button.
 
-**Existing project:** Paste the install prompt from [`install.md`](install.md) into your AI coding agent. It clones Trellis, copies `.trellis/` into your project, and appends the activation block to your platform file (CLAUDE.md, AGENTS.md, or .cursorrules).
+Then tell your AI: "Wire Trellis." Your memories are already there.
 
-2. **Edit `.trellis/memory/MEMORY.md`** — fill in your project name, goal, key people
-3. **Start your AI agent** from the project directory
-4. **That's it.** The agent reads MEMORY.md and starts building context.
+---
 
-### Stage 2: After ~5 Sessions
+## How It Works
 
-- The AI will start making mistakes about your project. When it does, say: "Add a correction: [what's wrong] → [what's right]." It adds to `corrections.md` and checks it every session.
-- If you're tracking tasks, say "PTL add: [task]." The AI manages `ptl.yaml`.
-- Structure patterns emerge: the AI plans before building, flags scope creep.
+### No Runtime
 
-### Stage 3: After ~10 Sessions
+Trellis has no daemon, no process, no server. The AI agent IS the CPU.
+`directives.md` is the instruction set. `protocol.md` is the program.
 
-- MEMORY.md approaches 200 lines. The AI compresses automatically per protocol.
-- Session-end sync (`.trellis/scripts/memory-sync.sh`) creates git snapshots for recovery.
-- Full governance active: corrections inform escalation, role separation catches drift, topology monitor confirms all three axes.
+Every session:
+- **Start:** AI reads `memory/MEMORY.md`, then `corrections.md`
+- **End:** AI updates state, runs `scripts/memory-sync.sh`
+
+That's the irreducible loop. Everything else builds on it.
+
+### Three-Tier Cache
+
+- **L1** (`MEMORY.md`): Always loaded. 200-line cap. Identity, state,
+  hot corrections, active sessions, health metrics.
+- **L2** (other `memory/*.md`): Loaded on demand. Full reference material.
+- **L3** (git): Recovery backstop. Session-end sync commits everything.
+
+### Corrections System
+
+The most valuable component. Maintain a list of things the AI gets wrong
+about your project. Each is a short imperative: what not to write, what
+to write instead. The five most-violated rotate into L1.
+
+Before corrections: same mistakes every session. After: near-zero repeats.
+
+### Self-Maintenance
+
+The AI maintains its own memory. Compression when approaching line cap.
+Integrity checks at session end. Health metrics computed automatically.
+The system heals itself.
+
+### Optional: SQLite Acceleration
+
+For mature installs, enable `database.enabled: true` in config.yaml.
+Adds ranked full-text search (FTS5), confidence decay, evidence tracking,
+and computed views. Flat files remain the source of truth.
 
 ---
 
 ## File Structure
 
 ```
-trellis/
-├── README.md
-├── LICENSE                          # MIT (code, memory, structure)
-├── LICENSE-DN.md                    # Dignity Net License 1.0.0 (ethics)
-├── CONTRIBUTING.md
-├── install.md                       # Install prompt for existing projects
-├── uninstall.md                     # Uninstall prompt
-├── CHANGELOG.md
-├── .trellis/
-│   ├── config.yaml                  # Layer toggles + topology monitor
-│   ├── directives.md                # Unified directives (read at session start)
-│   ├── memory/                      # Persistent context files
-│   │   ├── MEMORY.md                # L1 cache (~200 lines, always loaded)
-│   │   ├── protocol.md              # Session lifecycle rules
-│   │   ├── corrections.md           # Error tracking (starts empty)
-│   │   ├── ptl.yaml                 # Prioritized task list (starts empty)
-│   │   ├── decisions.md             # Decision log (starts empty)
-│   │   ├── people.md                # Key contacts
-│   │   ├── breakthroughs.md         # Reasoning breakthroughs (starts empty)
-│   │   └── session-details.md       # Session history (starts empty)
-│   ├── ethics/                      # Behavioral governance (Dignity Net)
-│   ├── structure/                   # Role separation (Triad protocol)
-│   ├── scripts/                     # Sync, health, topology
-│   ├── adapters/                    # Platform-specific activation generators
-│   └── docs/                        # Architecture, case study, patterns
-├── tests/                           # Test suite
-└── .gitignore
+~/.trellis/
++-- config.yaml                All user-controllable parameters
++-- directives.md              Instructions for the AI (assembled with plugins)
++-- memory/
+|   +-- MEMORY.md              L1 cache (always loaded)
+|   +-- protocol.md            Self-maintenance rules
+|   +-- corrections.md         Error tracking
+|   +-- *.md                   Individual memories
++-- plugins/
+|   +-- dignity-net/           Ethics: proportional escalation L0-L5
+|   +-- triad/                 Structure: Auditor/Generator role separation
++-- scripts/
+|   +-- memory-sync.sh         Git commit + optional push
+|   +-- health-check.sh        Health metrics report
+|   +-- topology-check.sh      Governance axis count
+|   +-- assemble-directives.sh Plugin directives assembly
+|   +-- wire-platform.sh       Platform activation block
+|   +-- rebuild-db.sh          SQLite rebuild (optional)
+|   +-- ingest-memories.sh     Memory file ingestion (optional)
+|   +-- db/                    Schema and views (optional)
 ```
+
+See [docs/architecture.md](docs/architecture.md) for the full reference.
 
 ---
 
-## How It Works
+## Configuration
 
-**Three-tier cache model:**
+All parameters live in `config.yaml`. Key sections:
 
-- **L1** (`MEMORY.md`): Always in context. Capped at 200 lines. Contains identity, current state, the five most critical corrections, active session summaries, and health metrics.
-- **L2** (other files in `.trellis/memory/`): Loaded on demand when depth is needed. Full reference material.
-- **L3** (git history): Recovery mechanism. Session-end sync commits everything to git. When context compresses or sessions crash, git is the backstop.
-
-**Corrections** are the most valuable memory component. You maintain a list of things the AI consistently gets wrong about your project. Each correction is a short imperative. The five most-violated rotate into L1 where they're visible every session. Before corrections: same mistakes every session. After: repeat violations near zero.
-
-**Role separation** prevents the AI from planning and executing in the same breath. The Auditor writes plans and success criteria. The Generator executes. Neither expands the other's scope. Drift detection stops work when code is altered to pass tests or tests altered to pass code.
-
-**Ethical governance** detects when stated goals and observable actions diverge, and responds proportionally. Level 0 (mirror) through Level 5 (refusal), scaled to pattern frequency and risk magnitude — never to emotional intensity. The Storm Protocol modulates tone under pressure without reducing substantive certainty.
-
-**Topology monitor** checks that all three governance axes are active. Below threshold (default: 3 axes), it warns about specific governance gaps and their risks.
+| Section | What it controls |
+|---------|-----------------|
+| `identity` | Your name, email, AI persona name |
+| `storage` | Tier (0-3), remote URL, auto push/pull |
+| `memory` | Line caps, compression, OPSEC |
+| `plugins` | Which governance layers are active |
+| `topology` | Minimum axis threshold |
+| `health` | Metric warning thresholds |
+| `confidence` | Per-type decay half-lives |
+| `database` | SQLite enable, FTS5 |
+| `platform` | Target: claude_code / codex / cursor |
 
 ---
 
 ## Talking to Your AI
 
-Once Trellis is set up, these interactions work in any session:
+Once installed, these work in any session:
 
-**Tasks:**
-- `PTL` — Show your prioritized task list
-- `PTL add: fix the auth bug` — Add a task
-- `PTL close PTL-003` — Mark a task done
+**Corrections:** "You keep calling it GraphQL — it's REST. Add a correction."
+The AI records it and checks it every session.
 
-**Corrections:**
-- "You keep calling it a REST API — it's GraphQL. Add a correction." → Added to `corrections.md` and enforced every session
+**Tasks:** "PTL add: fix the auth bug" / "PTL" / "PTL close PTL-003"
 
-**Structure:**
-- "You are the Auditor" — Plan mode: define criteria, write plans, review output
-- "You are the Generator" — Execute mode: implement the plan, nothing more
-- "No role needed" — Governance inactive for quick questions or config tasks
+**Memory:** "What's in your memory?" / "Remember that Sarah prefers Slack."
 
-**People:**
-- "Remember that Sarah is my tech lead, prefers Slack over email." → Added to `people.md`
-
-**Memory:**
-- "What's in your memory?" → Summarizes what it knows
-- "Sync memory" → Runs `memory-sync.sh`
+**Health:** "Run health check" / "Run topology check"
 
 ---
 
-## What Changes
+## Storage Tiers
 
-| Before Trellis | After Trellis |
-|----------------|---------------|
-| ~30% of session re-explaining context | <5% |
-| Same corrections every session | Near-zero repeat violations |
-| Decisions lost between sessions | All decisions logged with rationale |
-| No task continuity | Auto-tracked threads + structured tasks |
-| Context window exhaustion | Tiered caching keeps context lean |
-| Scope creep during implementation | Role separation enforces boundaries |
-| Errors compound silently | Proportional escalation catches patterns |
+| Tier | Requires | Adds |
+|------|----------|------|
+| 0 | Directory | Governance works, no versioning |
+| 1 | + git | Snapshots, recovery (default) |
+| 2 | + GitHub private | Backup, multi-machine portability |
+| 3 | + git-crypt + GPG | Encrypted backup |
 
-Results from 80+ sessions (founding project, ongoing):
-- **24 corrections established, repeat violations near zero**
-- **Zero catastrophic context losses** (after governance established)
-- **Context re-explanation: 30% → <5%**
-- **Drift detection: multiple interventions** prevented compounding errors
+Start at Tier 1. Upgrade when you need it. See [docs/storage-tiers.md](docs/storage-tiers.md).
 
 ---
 
-## What Trellis is NOT
+## Plugins
 
-- **Not a plugin or extension** — It's files. No installation, no dependencies.
-- **Not cloud-synced** — Memory lives on your filesystem + git. You own it.
-- **Not automatic** — The AI maintains the memory, but you direct the project.
-- **Not multi-user** — Each developer has their own memory. Share context via project docs.
-- **Not a replacement for documentation** — Trellis is project context for the AI, not docs for humans.
-- **Not a moral framework** — The ethics layer is behavioral governance, not philosophy. It detects divergence and responds proportionally.
+Trellis ships with two governance plugins:
+
+**Dignity Net** (ethics): Designed by Genevieve Prentice. Proportional
+escalation from L0 Mirror through L5 Refusal. Storm protocol for
+high-intensity exchanges.
+
+**Triad** (structure): Role separation for human-AI collaboration.
+Auditor plans, Generator implements. Explicit transitions only.
+
+Create your own: [docs/plugin-development.md](docs/plugin-development.md).
+
+---
+
+## Security
+
+**Memory files are committed to git.** At Tier 2+, they're on a remote
+server. Use a private repository.
+
+**Public repo guard:** `memory-sync.sh` checks if the GitHub remote is
+public. If so, it REFUSES to push.
+
+**Treat `~/.trellis/` like your shell config.** `directives.md` and
+`corrections.md` control AI behavior — a malicious edit is a backdoor.
+
+**Tier 3** adds encryption at rest via git-crypt for sensitive environments.
+
+---
+
+## Uninstall
+
+Tell your AI: "Uninstall Trellis." It will offer Remove (delete everything)
+or Reset (clear memories, keep governance). See [docs/uninstall.md](docs/uninstall.md).
+
+Remote backups (Tier 2+) are not deleted — recoverable at any time.
 
 ---
 
 ## Licensing
 
-Trellis uses dual licensing:
+| Content | License |
+|---------|---------|
+| Code, memory protocol, Triad plugin | MIT ([LICENSE](LICENSE)) |
+| Dignity Net ethics plugin | [Dignity Net License 1.0.0](LICENSE-DN.md) |
 
-| Directory | License | Copyright |
-|-----------|---------|-----------|
-| `.trellis/memory/` | MIT | Bruce Stephenson |
-| `.trellis/structure/` | MIT | Bruce Stephenson |
-| `.trellis/scripts/` | MIT | Bruce Stephenson |
-| `.trellis/adapters/` | MIT | Bruce Stephenson |
-| `.trellis/docs/` | MIT | Bruce Stephenson |
-| `tests/` | MIT | Bruce Stephenson |
-| `.trellis/ethics/` | Dignity Net License 1.0.0 | Genevieve Prentice |
-
-- **MIT** ([LICENSE](LICENSE)): Code, memory templates, structural protocol. Use, modify, redistribute freely.
-- **Dignity Net License 1.0.0** ([LICENSE-DN.md](LICENSE-DN.md)): Ethics layer content. Free for individuals, education, and organizations under 50 employees. No derivatives. Organizations with 50+ employees require a commercial license (contact hello@dignityfield.org).
-
-Ethics files carry per-file license headers. You can disable or remove the ethics layer entirely — the memory and structure layers work independently under MIT.
+The Dignity Net License permits free use by individuals, educational
+institutions, and organizations with fewer than 50 employees. No derivatives
+of the Dignity Net protocol without permission.
 
 ---
 
-## Security & Privacy
+## Contributing
 
-**Memory files are committed to git.** If your repo is pushed to GitHub (public or private), all memory content — session history, people data, corrections, task priorities — will be visible to anyone with repo access.
-
-**Treat `.trellis/` like code.** Review changes to `.trellis/` files in PRs with the same scrutiny as code changes. `directives.md`, `corrections.md`, and ethics files control AI behavior — a malicious edit is equivalent to a backdoor.
-
-**Ethics files** contain behavioral governance rules. Verify them after installation (supply chain hygiene).
-
-**Shared repos:** `.trellis/` contains personal project context. In team settings, either:
-- Use per-developer directories (`.trellis-alice/`, `.trellis-bob/`)
-- Add `.trellis/memory/people.md` and `.trellis/memory/session-details.md` to `.gitignore`
-- Or agree as a team that memory content is shared
-
-**Uninstall note:** `rm -rf .trellis/` removes files but history persists in git. For full removal: `git filter-repo --path .trellis/ --invert-paths` (requires force-push).
-
----
-
-## Troubleshooting
-
-**AI doesn't load MEMORY.md**
-- Verify your platform file (CLAUDE.md, AGENTS.md, or .cursorrules) contains the TRELLIS START activation block
-- Restart your AI agent from the project directory
-- Check that `.trellis/memory/MEMORY.md` exists and is not empty
-
-**memory-sync.sh fails**
-- Run `git init` if this is a new project (script requires a git repo)
-- Check file permissions: `chmod +x .trellis/scripts/*.sh`
-
-**PTL commands not recognized**
-- The AI needs to read `.trellis/directives.md` first — start from the project root
-- Try: "Read `.trellis/directives.md` and then show me the PTL"
-
-**MEMORY.md getting too long**
-- Normal: the AI should compress automatically at 180 lines
-- If not compressing: say "MEMORY.md is over 180 lines, please compress per protocol.md"
-
-**Topology monitor shows axes missing**
-- Check `.trellis/config.yaml` — each layer has an `enabled` flag
-- Run `.trellis/scripts/topology-check.sh` for diagnostics
-
-**Requirements:** An AI coding agent (Claude Code, OpenAI Codex, Cursor), git, bash. Tested on Ubuntu 22.04+ and macOS 13+. Windows: untested, should work under WSL2.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Additions should solve a real problem,
+require no new dependencies, and fit the three-layer model.
 
 ---
 
 ## Contact
 
-For questions, bug reports, or consulting on structured governance systems for AI-assisted development:
-
 **energyscholar+consulting@gmail.com**
 
----
-
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Dignity Net License](https://img.shields.io/badge/Ethics-Dignity_Net_1.0.0-green.svg)](LICENSE-DN.md)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
