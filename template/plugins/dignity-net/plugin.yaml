@@ -1,0 +1,12 @@
+name: dignity-net
+version: 1.0.0
+author: Genevieve Prentice
+license: Dignity Net License 1.0.0
+axis: ethics
+description: Behavioral ethics protocol for AI governance
+
+files:
+  spec: dignity-net.md
+  directives: directives.md
+
+directives_section: "## Ethical Governance"
