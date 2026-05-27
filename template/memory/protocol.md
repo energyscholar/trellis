@@ -49,10 +49,11 @@ Pinned items (corrections) exempt.
 3. **Classify:** PARADIGM (new insight, direction change, milestone, substantive new articulation) or ROUTINE (incremental). Default PARADIGM if unsure.
 4. **Correction violation sweep:** Review session for violations. Update "Last violated" dates.
 5. **Update Health Metrics + integrity checks** (Sections 7, 9)
-6. **Extract open threads:** Unresolved topics in >=3 of last 5 sessions -> add to `## Open Threads` in MEMORY.md (max 5). Stale after 3 sessions without mention.
-7. **Commit:** Run `scripts/memory-sync.sh`
-8. **Remove dirty flag:** Delete `.session-active`
-9. **Data hygiene check:** If new memory files were created, verify they contain no PII, credentials, or sensitive data.
+6. **Log session events:** Append one row to `memory/session-log.md`. Three axis columns: Memory events (correction, save, compress, staleness-caught), Structure events (plan, follow, transition, drift-flag, drift-resolved), Ethics events (l0-l5, storm, divergence). Record structural facts, not quality judgments. Use `—` for no events on an axis.
+7. **Extract open threads:** Unresolved topics in >=3 of last 5 sessions -> add to `## Open Threads` in MEMORY.md (max 5). Stale after 3 sessions without mention.
+8. **Commit:** Run `scripts/memory-sync.sh`
+9. **Remove dirty flag:** Delete `.session-active`
+10. **Data hygiene check:** If new memory files were created, verify they contain no PII, credentials, or sensitive data.
 
 ---
 
@@ -135,6 +136,8 @@ Compute at session end. Store in MEMORY.md Health Metrics.
 ## 11. Self-Maintenance Triggers
 
 **Every ~5 sessions:** Run `scripts/health-check.sh`. If any metric above threshold, perform indicated maintenance per this protocol before continuing.
+
+**Every ~10 sessions (or when health-check flags it):** Run `scripts/acs-check.sh` for full ACS report. If λ₁ < 1.0: governance is subcritical — prioritize the weakest edge per the script's recommendation and inform the user. If a specific edge is below config `acs.weak_edge_threshold` (default 0.3): follow the edge-specific recommendation in the script output.
 
 **Opportunistic maintenance (idle time):** In priority order: (1) recompute stale health metrics, (2) compress MEMORY.md if approaching cap, (3) integrity spot-check. Max config `maintenance.max_per_session` per session (default 2). Silent unless broken.
 

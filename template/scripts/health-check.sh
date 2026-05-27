@@ -174,6 +174,12 @@ fi
 drift="0.00"
 echo "  drift:         $drift  [OK]"
 
+# ACS (cross-axis catalysis) — delegates to acs-check.sh
+acs_script="$TRELLIS/scripts/acs-check.sh"
+if [ -x "$acs_script" ]; then
+    bash "$acs_script" --oneliner 2>/dev/null || true
+fi
+
 echo ""
 
 # Overall

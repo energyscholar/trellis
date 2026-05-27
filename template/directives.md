@@ -27,9 +27,10 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 3. Correction violation sweep: review session for violations, update dates
 4. Run integrity checks (verify file paths, correction count, orphans)
 5. Update health metrics
-6. Run `scripts/memory-sync.sh` to commit memory files
-7. Remove `.session-active` flag
-8. If new memory files created: verify no PII or credentials
+6. **Log session events:** Append one row to `memory/session-log.md` — classify which events fired per axis this session (Memory/Structure/Ethics columns). Record structural facts only, not judgments about quality.
+7. Run `scripts/memory-sync.sh` to commit memory files
+8. Remove `.session-active` flag
+9. If new memory files created: verify no PII or credentials
 
 ### Saving Memories
 
@@ -46,6 +47,19 @@ Triggers:
 - File references broken -> fix immediately
 - Health metrics above threshold -> run protocol.md procedures
 - Idle time -> opportunistic maintenance (max 2 per session)
+
+### ACS Governance Health
+
+Every ~10 sessions (or when `health-check.sh` flags it): run `scripts/acs-check.sh`.
+This measures cross-axis catalysis — how Memory, Structure, and Ethics reinforce each other.
+
+**Self-healing:** If the ACS report identifies a weak edge (below 0.3), follow its recommendation. Common remedies:
+- Weak S→E: Include governance criteria in plans. Auditor reviews should check DN compliance.
+- Weak M→S: Capture structure-related corrections. When drift is detected, check corrections first.
+- Weak E→M: Review memories for confabulation risk. DN should flag unsourced claims before they become memories.
+- If λ₁ drops below 1.0 (subcritical): the governance system is not self-sustaining. Prioritize the weakest edge. Inform the user.
+
+The AI does NOT self-modify based on ACS scores. Scores inform the human. The AI records events faithfully and follows recommendations from the script.
 
 ### Data Hygiene
 

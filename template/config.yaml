@@ -67,6 +67,15 @@ health:
   drift_warn: 1.0                # Sessions since system review / review_interval
   review_interval: 10            # Full system review every N sessions
 
+# --- ACS (Autocatalytic Set) Governance ---
+# Cross-axis catalysis measurement. Computed from session-log.md.
+acs:
+  acs_window: 20                 # Sessions to include in the analysis window
+  acs_min_sessions: 10           # Minimum sessions before ACS can be computed
+  supercritical_threshold: 1.0   # lambda_1 above this = self-sustaining governance
+  weak_edge_threshold: 0.3       # Edge below this triggers a recommendation
+  check_interval: 10             # Run ACS check every N sessions
+
 # --- Confidence Decay ---
 # Per-type half-life defaults (days). null = pinned (no decay).
 # These seed the confidence_config table on DB rebuild.
