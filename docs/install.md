@@ -89,10 +89,12 @@ echo "$HOME/.trellis" > "$HOME/.config/trellis/home"
 
 - [ ] `~/.trellis/config.yaml` exists
 - [ ] `~/.trellis/memory/MEMORY.md` exists and has identity filled in
-- [ ] `~/.trellis/directives.md` exists and contains plugin sections
-- [ ] All scripts in `~/.trellis/scripts/` are executable
+- [ ] `~/.trellis/memory/session-log.md` exists (event log for ACS governance check)
+- [ ] `~/.trellis/memory/corrections.md` has 4 starter corrections
+- [ ] `~/.trellis/directives.md` exists and contains plugin sections + ACS section
+- [ ] All scripts in `~/.trellis/scripts/` are executable (including `acs-check.sh`)
 - [ ] Activation block present in platform config file
-- [ ] `scripts/health-check.sh` reports all OK
+- [ ] `scripts/health-check.sh` reports all OK (ACS line shows "need 10+ sessions")
 - [ ] `scripts/topology-check.sh` reports 3/3
 
 ## Restore from Backup

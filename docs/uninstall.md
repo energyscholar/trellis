@@ -27,11 +27,12 @@ Clear memories but keep protocols, plugins, and scripts. For starting fresh.
 ### Steps
 
 1. **Find installation**
-2. **Delete memory files:** All `memory/*.md` except `protocol.md`
+2. **Delete memory files:** All `memory/*.md` except `protocol.md`, `session-log.md`, `corrections.md`
 3. **Reset MEMORY.md:** Restore to template state (identity blank, no sessions)
-4. **Reset corrections.md:** Restore to empty template
-5. **Commit:** `git commit -am "Reset memories"`
-6. Done. Protocols, plugins, scripts, config preserved.
+4. **Reset corrections.md:** Restore to starter corrections (the 4 generic cross-axis seeds, not empty — they're infrastructure)
+5. **Reset session-log.md:** Restore to empty table header (clear session history but keep the format)
+6. **Commit:** `git commit -am "Reset memories"`
+7. Done. Protocols, plugins, scripts, config, starter corrections preserved. ACS data cleared.
 
 ## Edge Cases
 

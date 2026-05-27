@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] — 2026-05-27
+
+### Added
+- ACS governance measurement (`scripts/acs-check.sh`): cross-axis catalysis matrix on K3, depressed cubic eigenvalue solver in awk, self-healing recommendations per weak edge
+- Session event log (`memory/session-log.md`): append-only markdown table, three axis columns, machine-parseable
+- 4 starter corrections seeding cross-axis catalysis at install time
+- ACS one-liner integrated into `health-check.sh` output
+- ACS config section in `config.yaml` (window size, thresholds, check interval)
+- Self-healing directives: weak-edge recommendations fed back through protocol
+
+### Changed
+- `directives.md`: session-end step 6 now includes event logging; ACS governance health section added
+- `protocol.md`: session-end step 6 (log events), self-maintenance trigger for ACS check every ~10 sessions
+- `corrections.md`: ships with 4 generic starter corrections instead of empty
+- Uninstall reset preserves starter corrections and session-log format
+
 ## [0.2.0] — 2026-05-25
 
 ### Added
