@@ -68,12 +68,30 @@ set_current_profile() {
 get_acs_oneliner() {
     local dir="$1"
     local log="$dir/memory/session-log.md"
-    if [ -f "$log" ]; then
-        local count
-        count=$(awk -F'|' '/^\| S[0-9]/ { n++ } END { print n+0 }' "$log")
-        echo "$count sessions"
+    local count=0
+    [ -f "$log" ] && count=$(awk -F'|' '/^\| S[0-9]/ { n++ } END { print n+0 }' "$log")
+
+    if [ "$count" -lt 10 ]; then
+        echo "${count}s, λ —"
+        return
+    fi
+
+    # Compute ACS by pointing acs-check.sh at the profile directory
+    local acs_script="$TRELLIS/scripts/acs-check.sh"
+    if [ -x "$acs_script" ]; then
+        local raw
+        raw=$(TRELLIS_HOME="$dir" bash "$acs_script" --oneliner 2>/dev/null || true)
+        # Parse: "  acs:           λ=0.85 gap=0.20 weak=S→M(0.17) [NEAR-CRITICAL]"
+        local lambda status
+        lambda=$(echo "$raw" | sed -n 's/.*λ=\([0-9.]*\).*/\1/p' 2>/dev/null || true)
+        status=$(echo "$raw" | sed -n 's/.*\[\([A-Z-]*\)\].*/\1/p' 2>/dev/null || true)
+        if [ -n "$lambda" ]; then
+            echo "${count}s, λ=${lambda} ${status}"
+        else
+            echo "${count}s, λ —"
+        fi
     else
-        echo "0 sessions"
+        echo "${count}s, λ —"
     fi
 }
 
