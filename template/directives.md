@@ -116,7 +116,7 @@ Trellis supports named snapshots of the entire memory state for comparison, expe
 
 ## Updates & Diagnostics
 
-**Update:** When the user asks to update Trellis, run `scripts/trellis-update.sh`. To check without applying: `scripts/trellis-update.sh --check`. Updates overwrite system files (scripts, plugins, directives template) but never touch user data (memory, config, profiles).
+**Update:** When the user asks to update Trellis, run `scripts/trellis-update.sh`. To check without applying: `scripts/trellis-update.sh --check`. Updates overwrite system files (scripts, plugins, directives template) but never touch user data (memory, config, profiles). Every ~10 sessions, run `--check` and let the user know if an update is available.
 
 **Diagnostic:** When the user asks for a diagnostic report (or "run trellis diagnostic"), run `scripts/trellis-diagnostic.sh`. The output contains structural metadata only — no memory content, corrections text, or personal data. The user controls what they share.
 
