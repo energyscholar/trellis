@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.1] — 2026-05-27
+
+### Added
+- Memory profile system (`scripts/trellis-profile.sh`): save, load, list, delete, current, interactive menu
+- Profile pin/unpin: protect test baselines from session-end auto-save
+- Profile export/import: portable .tar.gz archives for moving profiles between machines
+- SessionEnd hook (`scripts/trellis-hook-session-end.sh`): auto-sync memory + auto-save profile
+- Training primer (`memory/training-primer.md`): 5 guided deduction questions targeting weak K3 edges
+- Session start directive: training primer loaded for sessions < 10
+
+### Changed
+- `directives.md`: Memory Profiles section expanded with pin/unpin/export/import commands
+- SessionEnd hook respects pinned profiles (routes auto-save to `_autosave`)
+- `memory/MEMORY.md` template: file map includes training-primer.md
+- Install verification checklist includes training-primer.md
+
 ## [0.3.0] — 2026-05-27
 
 ### Added

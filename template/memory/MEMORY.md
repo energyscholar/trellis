@@ -31,5 +31,6 @@ Run `scripts/health-check.sh` for current metrics.
 | `memory/MEMORY.md` | This file — L1 cache, always loaded |
 | `memory/protocol.md` | Self-maintenance rules (lazy-loaded) |
 | `memory/corrections.md` | Error tracking |
+| `memory/training-primer.md` | Guided deduction exercises for cross-axis wiring (sessions 2-6, then archive) |
 
 (new memory files added here as they're created)

@@ -31,6 +31,10 @@ Commands:
   save <name> [-d "desc"]      Snapshot current memory state as a named profile
   load <name>                  Switch to a named profile (auto-saves current first)
   delete <name>                Remove a profile
+  pin <name>                   Protect profile from auto-save overwrites
+  unpin <name>                 Remove pin protection
+  export <name> [path]         Export profile as .tar.gz (default: ./<name>.trellis-profile.tar.gz)
+  import <path> [name]         Import profile from .tar.gz or directory
   current                      Show active profile name
   (no args)                    Interactive menu
 
@@ -73,6 +77,28 @@ get_acs_oneliner() {
     fi
 }
 
+validate_name() {
+    local name="$1"
+    if [ -z "$name" ]; then
+        echo "Profile name cannot be empty" >&2; exit 1
+    fi
+    if echo "$name" | grep -qE '/|\.\.'; then
+        echo "Invalid profile name: $name" >&2; exit 1
+    fi
+    if echo "$name" | grep -qE '^\.*$'; then
+        echo "Invalid profile name: $name" >&2; exit 1
+    fi
+    if [ "$name" = "_autosave" ]; then
+        echo "Profile name '_autosave' is reserved" >&2; exit 1
+    fi
+}
+
+is_pinned() {
+    local name="$1"
+    local manifest="$PROFILES_DIR/$name/profile.yaml"
+    [ -f "$manifest" ] && grep -q '^pinned: true' "$manifest" 2>/dev/null
+}
+
 # --- Commands ---
 
 cmd_list() {
@@ -102,7 +128,9 @@ cmd_list() {
             marker="*"
         fi
 
-        printf "  %s %d. %-20s %s  (%s)\n" "$marker" "$i" "$name" "${desc:-(no description)}" "$sessions"
+        local pin_marker=""
+        is_pinned "$name" && pin_marker=" [pinned]"
+        printf "  %s %d. %-20s %s%s  (%s)\n" "$marker" "$i" "$name" "${desc:-(no description)}" "$pin_marker" "$sessions"
     done
 
     if [ "$i" -eq 0 ]; then
@@ -116,6 +144,11 @@ cmd_list() {
 
 cmd_save() {
     local name="$1"
+    validate_name "$name"
+    if is_pinned "$name"; then
+        echo "Profile '$name' is pinned. Unpin first or save to a different name." >&2
+        exit 1
+    fi
     shift
     local desc=""
 
@@ -160,6 +193,7 @@ MANIFEST
 
 cmd_load() {
     local name="$1"
+    validate_name "$name"
     local target="$PROFILES_DIR/$name"
 
     if [ ! -d "$target" ]; then
@@ -221,9 +255,10 @@ MANIFEST
 
 cmd_delete() {
     local name="$1"
+    validate_name "$name"
 
-    if [ "$name" = "_autosave" ]; then
-        echo "Cannot delete _autosave (safety net)" >&2
+    if is_pinned "$name"; then
+        echo "Profile '$name' is pinned. Unpin first." >&2
         exit 1
     fi
 
@@ -279,7 +314,9 @@ cmd_interactive() {
         current=$(get_current_profile)
         marker=" "
         [ "$name" = "$current" ] && marker="*"
-        printf "  %s %d. %-20s %s  (%s)\n" "$marker" "$i" "$name" "${desc:-(no description)}" "$sessions"
+        local pin_marker=""
+        is_pinned "$name" && pin_marker=" [pinned]"
+        printf "  %s %d. %-20s %s%s  (%s)\n" "$marker" "$i" "$name" "${desc:-(no description)}" "$pin_marker" "$sessions"
     done
 
     if [ "$i" -eq 0 ]; then
@@ -308,6 +345,129 @@ cmd_interactive() {
     fi
 }
 
+cmd_pin() {
+    local name="$1"
+    validate_name "$name"
+    if [ ! -d "$PROFILES_DIR/$name" ]; then
+        echo "Profile not found: $name" >&2; exit 1
+    fi
+    local manifest="$PROFILES_DIR/$name/profile.yaml"
+    if grep -q '^pinned:' "$manifest" 2>/dev/null; then
+        sed -i 's/^pinned:.*/pinned: true/' "$manifest"
+    else
+        echo "pinned: true" >> "$manifest"
+    fi
+    if command -v git &>/dev/null && git -C "$TRELLIS" rev-parse --git-dir &>/dev/null; then
+        git -C "$TRELLIS" add -A
+        git -C "$TRELLIS" commit -m "Profile pinned: $name" 2>/dev/null || true
+    fi
+    echo "Pinned: $name (protected from auto-save)"
+}
+
+cmd_unpin() {
+    local name="$1"
+    validate_name "$name"
+    if [ ! -d "$PROFILES_DIR/$name" ]; then
+        echo "Profile not found: $name" >&2; exit 1
+    fi
+    local manifest="$PROFILES_DIR/$name/profile.yaml"
+    sed -i '/^pinned:/d' "$manifest"
+    if command -v git &>/dev/null && git -C "$TRELLIS" rev-parse --git-dir &>/dev/null; then
+        git -C "$TRELLIS" add -A
+        git -C "$TRELLIS" commit -m "Profile unpinned: $name" 2>/dev/null || true
+    fi
+    echo "Unpinned: $name"
+}
+
+cmd_export() {
+    local name="$1"
+    validate_name "$name"
+    local dest="${2:-./${name}.trellis-profile.tar.gz}"
+    local source="$PROFILES_DIR/$name"
+    if [ ! -d "$source" ]; then
+        echo "Profile not found: $name" >&2; exit 1
+    fi
+    tar czf "$dest" -C "$PROFILES_DIR" "$name"
+    local size
+    size=$(du -h "$dest" | cut -f1)
+    echo "Exported: $name → $dest ($size)"
+}
+
+cmd_import() {
+    local path="$1"
+    local import_name="${2:-}"
+    local _import_tmpdir=""
+    local source=""
+
+    if [[ "$path" == *.tar.gz || "$path" == *.tgz ]]; then
+        _import_tmpdir=$(mktemp -d)
+        tar xzf "$path" -C "$_import_tmpdir"
+        for d in "$_import_tmpdir"/*/; do
+            [ -d "$d/memory" ] && { source="$d"; break; }
+        done
+        if [ -z "$source" ]; then
+            rm -rf "$_import_tmpdir"
+            echo "Archive does not contain a valid profile (no memory/ directory)" >&2; exit 1
+        fi
+    elif [ -d "$path" ]; then
+        source="$path"
+    else
+        echo "Path is not a tarball or directory: $path" >&2; exit 1
+    fi
+
+    if [ ! -d "$source/memory" ]; then
+        [ -n "$_import_tmpdir" ] && rm -rf "$_import_tmpdir"
+        echo "Invalid profile: missing memory/ directory" >&2; exit 1
+    fi
+    if [ ! -f "$source/config.yaml" ]; then
+        [ -n "$_import_tmpdir" ] && rm -rf "$_import_tmpdir"
+        echo "Invalid profile: missing config.yaml" >&2; exit 1
+    fi
+
+    # Determine name
+    local name="$import_name"
+    if [ -z "$name" ] && [ -f "$source/profile.yaml" ]; then
+        name=$(grep '^name:' "$source/profile.yaml" 2>/dev/null | sed 's/^name:[[:space:]]*//' | tr -d '"'"'")
+    fi
+    if [ -z "$name" ]; then
+        name=$(basename "$path")
+        name="${name%.trellis-profile.tar.gz}"
+        name="${name%.tar.gz}"
+        name="${name%.tgz}"
+    fi
+
+    validate_name "$name"
+
+    if [ -d "$PROFILES_DIR/$name" ]; then
+        [ -n "$_import_tmpdir" ] && rm -rf "$_import_tmpdir"
+        echo "Profile '$name' already exists. Delete it first." >&2; exit 1
+    fi
+
+    local target="$PROFILES_DIR/$name"
+    mkdir -p "$target"
+    cp -r "$source/memory" "$target/memory"
+    cp "$source/config.yaml" "$target/config.yaml"
+    if [ -f "$source/profile.yaml" ]; then
+        cp "$source/profile.yaml" "$target/profile.yaml"
+        sed -i "s|^name:.*|name: \"$name\"|" "$target/profile.yaml"
+    else
+        cat > "$target/profile.yaml" <<MANIFEST
+name: "$name"
+description: ""
+created: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+MANIFEST
+    fi
+
+    [ -n "$_import_tmpdir" ] && rm -rf "$_import_tmpdir"
+
+    if command -v git &>/dev/null && git -C "$TRELLIS" rev-parse --git-dir &>/dev/null; then
+        git -C "$TRELLIS" add -A
+        git -C "$TRELLIS" commit -m "Profile imported: $name" 2>/dev/null || true
+    fi
+
+    echo "Imported: $name"
+}
+
 # --- Dispatch ---
 
 case "${1:-}" in
@@ -315,6 +475,10 @@ case "${1:-}" in
     save)    shift; cmd_save "$@" ;;
     load)    shift; cmd_load "$@" ;;
     delete)  shift; cmd_delete "$@" ;;
+    pin)     shift; cmd_pin "$@" ;;
+    unpin)   shift; cmd_unpin "$@" ;;
+    export)  shift; cmd_export "$@" ;;
+    import)  shift; cmd_import "$@" ;;
     current) cmd_current ;;
     -h|--help|help) usage ;;
     "")      cmd_interactive ;;

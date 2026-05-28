@@ -14,11 +14,13 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 ### Session Start
 
 1. Read `memory/MEMORY.md` (auto-loaded)
-2. Read `memory/corrections.md` -- check every correction
-3. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
-4. Check health metrics; if anomalies, investigate
-5. After 5+ sessions: run `scripts/health-check.sh` every ~5 sessions
-6. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
+2. **Identity check:** If identity fields are empty (session 0), ask the user for their name and what they're working on. Do not infer identity from any existing config file — it may belong to a different system.
+3. Read `memory/corrections.md` -- check every correction
+4. If `memory/training-primer.md` exists and sessions < 10: read it, work through the **next unfinished** question (one per session, not all at once)
+4. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
+5. Check health metrics; if anomalies, investigate
+6. After 5+ sessions: run `scripts/health-check.sh` every ~5 sessions
+7. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
 
 ### Session End
 
@@ -92,8 +94,14 @@ Trellis supports named snapshots of the entire memory state for comparison, expe
 - `load <name>` — switch to a named profile (auto-saves current state first)
 - `list` — show all profiles with description and session count
 - `current` — show active profile name
+- `pin <name>` — protect profile from auto-save overwrites (test baselines)
+- `unpin <name>` — remove pin protection
+- `export <name> [path]` — export profile as portable .tar.gz archive
+- `import <path> [name]` — import profile from .tar.gz or directory
 
 **When the user says** "switch profile", "load profile", "save profile", or "profiles": run the appropriate script command or present the profile list for selection.
+
+**Pinned profiles** are protected from session-end auto-save. Use pin for test baselines and reference states that should not be modified. The session-end hook saves to `_autosave` instead when the active profile is pinned.
 
 After loading a profile: re-read `memory/MEMORY.md` and `memory/corrections.md` to activate the new state.
 
