@@ -99,20 +99,22 @@ Trellis supports named snapshots of the entire memory state for comparison, expe
 - `export <name> [path]` — export profile as portable .tar.gz archive
 - `import <path> [name]` — import profile from .tar.gz or directory
 
-**When the user says** "switch profile", "load profile", "save profile", "profiles", or "flatten to blank": run the appropriate script command. For ambiguous requests, run `list` first and present options.
+**Natural language triggers** — recognize ANY of these intents and act:
+- "load [name]", "switch to [name]", "pull in [name]", "use the [name] profile" → `load <name>`
+- "save this as [name]", "snapshot [name]", "checkpoint [name]" → `save <name>`
+- "show profiles", "list profiles", "what profiles do I have" → `list`, present as numbered menu
+- "flatten to blank", "reset", "start fresh" → `load blank`
+- "go back to [name]", "roll back to [name]", "restore [name]" → `load <name>`
+- If the user names a profile without a verb ("post-q3"), treat as load request — confirm first.
+- If ambiguous or no name given: run `list`, show the numbered menu, ask which one.
+
+**After loading a profile:** You MUST re-read `memory/MEMORY.md` and `memory/corrections.md` immediately — your in-context state is stale until you do. Confirm to the user: what profile loaded, how many sessions it contains, and any key state (e.g., "Training primer Q3 complete, 5 corrections").
 
 **Pinned profiles** are protected from session-end auto-save. Use pin for test baselines and reference states that should not be modified. The session-end hook saves to `_autosave` instead when the active profile is pinned.
-
-**After loading a profile:** You MUST re-read `memory/MEMORY.md` and `memory/corrections.md` immediately — your in-context state is stale until you do. Confirm to the user what profile is now active.
 
 **Standard profiles:**
 - `blank` — pristine template install. No identity, no sessions, 4 starter corrections. Always pinned.
 - Other profiles are created during use. Run `list` to see what's available.
-
-**Typical operations:**
-- "Flatten to blank": `load blank` (auto-saves current state to `_autosave` first, then loads blank. Re-read memory files.)
-- After a training milestone: `save "post-q2" -d "After primer Q2, correction #5 added"`
-- Before risky changes: `save "pre-experiment"` so you can roll back
 
 ## Updates & Diagnostics
 
