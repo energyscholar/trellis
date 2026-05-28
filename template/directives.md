@@ -16,6 +16,7 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 1. Read `memory/MEMORY.md` (auto-loaded)
 2. **Identity check:** If identity fields are empty (session 0), ask the user for their name and what they're working on. Do not infer identity from any existing config file — it may belong to a different system.
 3. Read `memory/corrections.md` -- check every correction
+3b. **Proprioceptive check:** If `scripts/proprioceptive-check.sh` exists, run it. Read the ADJUSTMENTS section. Execute up to 2 mechanical adjustments silently. Each adjustment has a `[set_point:X, prov:Y]` tag -- use these when logging the action in the session-log entry. Source follows the set-point provenance (`human` in v1). If the script fails, proceed normally but note `proprioception-skipped(e)` in the session log.
 4. If `memory/training-primer.md` exists and sessions < 10: read it, follow its Session Procedure (one question per session)
 5. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
 6. Check health metrics; if anomalies, investigate
@@ -30,7 +31,7 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 3. Correction violation sweep: review session for violations, update dates
 4. Run integrity checks (verify file paths, correction count, orphans)
 5. Update health metrics
-6. **Log session events:** Append one row to `memory/session-log.md` — classify which events fired per axis this session (Memory/Structure/Ethics columns). Record structural facts only, not judgments about quality.
+6. **Log session events:** Append one row to `memory/session-log.md` — classify which events fired per axis this session (Memory/Structure/Ethics columns). Record structural facts only, not judgments about quality. Annotate events with source: `(e)` for environment-sourced (health-check findings, checksum failures, auto-detected staleness), `(s)` for system-generated (auto-expiry, compression trigger). Unannotated events default to human. Source follows the decider, not who ran the command.
 7. Run `scripts/memory-sync.sh` to commit memory files
 8. Remove `.session-active` flag
 9. If new memory files created: verify no PII or credentials

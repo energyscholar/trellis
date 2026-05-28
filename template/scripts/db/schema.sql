@@ -139,6 +139,19 @@ CREATE TABLE session_themes(
     PRIMARY KEY (session_id, theme)
 );
 
+CREATE TABLE session_events(
+    id INTEGER PRIMARY KEY,
+    session_id INTEGER NOT NULL REFERENCES sessions(id),
+    axis TEXT NOT NULL CHECK(axis IN ('memory', 'structure', 'ethics')),
+    event TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'human'
+        CHECK(source IN ('human', 'environment', 'system')),
+    set_point TEXT,
+    set_point_provenance TEXT
+        CHECK(set_point_provenance IS NULL OR set_point_provenance IN ('human', 'consequence')),
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- ============================================================================
 -- Knowledge tracking
 -- ============================================================================

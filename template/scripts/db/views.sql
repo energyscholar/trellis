@@ -104,6 +104,12 @@ WHERE s.significance = 'PARADIGM'
 GROUP BY s.id
 ORDER BY s.number DESC;
 
+CREATE VIEW v_provenance_histogram AS
+SELECT source, COUNT(*) as count,
+    ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 1) AS pct
+FROM session_events
+GROUP BY source;
+
 -- ============================================================================
 -- Feedback
 -- ============================================================================

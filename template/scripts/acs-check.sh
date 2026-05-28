@@ -89,23 +89,66 @@ last_date=$(echo "$windowed" | tail -1 | cut -d'|' -f2)
 #   E->M: (l1+ OR divergence) in E AND correction in M
 #   E->S: divergence in E AND (drift-flag OR drift-resolved) in S
 
+# --- Provenance-aware awk pass ---
+# Strips source annotations (e), (s) before edge checks (backward compatible).
+# Counts per-source events. Writes per-session edge data to tempfile for RWI pass.
+
+prov_tmp=$(mktemp)
+trap 'rm -f "$prov_tmp"' EXIT
+
 read -r m_activity s_activity e_activity \
-       m_to_s m_to_e s_to_m s_to_e e_to_m e_to_s <<< "$(echo "$windowed" | awk -F'|' '
-BEGIN { n=0; ma=0; sa=0; ea=0; ms=0; me=0; sm=0; se=0; em=0; es=0 }
+       m_to_s m_to_e s_to_m s_to_e e_to_m e_to_s \
+       total_events human_events env_events sys_events <<< "$(echo "$windowed" | awk -F'|' -v prov_file="$prov_tmp" '
+function event_source(ev) {
+    if (ev ~ /\(e\)[[:space:]]*$/) return "e"
+    if (ev ~ /\(s\)[[:space:]]*$/) return "s"
+    return "h"
+}
+function field_has_src(field, pat,    i, nf, parts, ev, stripped) {
+    nf = split(field, parts, /,/)
+    for (i = 1; i <= nf; i++) {
+        ev = parts[i]; gsub(/^[ \t]+|[ \t]+$/, "", ev)
+        stripped = ev; gsub(/\([ehs]\)[[:space:]]*$/, "", stripped); gsub(/[ \t]+$/, "", stripped)
+        if (stripped ~ pat) { _src = event_source(ev); return 1 }
+    }
+    _src = "h"; return 0
+}
+BEGIN {
+    n=0; ma=0; sa=0; ea=0; ms=0; me=0; sm=0; se=0; em=0; es=0
+    total_ev=0; human_ev=0; env_ev=0; sys_ev=0
+}
 {
     n++
-    mem = $4; str = $5; eth = $6
+    raw_mem = $4; raw_str = $5; raw_eth = $6
+    mem = raw_mem; str = raw_str; eth = raw_eth
 
-    # Per-axis activity (any non-trivial event)
-    has_m = (mem !~ /^[-—]?$/ && mem != "")
-    has_s = (str !~ /^[-—]?$/ && str != "")
-    has_e = (eth !~ /^[-—]?$/ && eth != "" && eth !~ /^l0$/)
+    # --- Count per-event sources across all axes ---
+    for (axis_idx = 4; axis_idx <= 6; axis_idx++) {
+        nf = split($axis_idx, parts, /,/)
+        for (i = 1; i <= nf; i++) {
+            ev = parts[i]; gsub(/^[ \t]+|[ \t]+$/, "", ev)
+            if (ev == "" || ev ~ /^[-\342\200\224]?$/) continue
+            total_ev++
+            s = event_source(ev)
+            if (s == "e") env_ev++
+            else if (s == "s") sys_ev++
+            else human_ev++
+        }
+    }
+
+    # --- Strip annotations from fields for activity + edge checks ---
+    gsub(/\([ehs]\)/, "", mem); gsub(/\([ehs]\)/, "", str); gsub(/\([ehs]\)/, "", eth)
+
+    # Per-axis activity (any non-trivial event) — UNCHANGED logic
+    has_m = (mem !~ /^[-\342\200\224]?$/ && mem != "")
+    has_s = (str !~ /^[-\342\200\224]?$/ && str != "")
+    has_e = (eth !~ /^[-\342\200\224]?$/ && eth != "" && eth !~ /^l0$/)
 
     if (has_m) ma++
     if (has_s) sa++
     if (has_e) ea++
 
-    # Atomic event flags
+    # Atomic event flags — UNCHANGED logic (annotations already stripped)
     m_correction = (mem ~ /correction/)
     m_save       = (mem ~ /save/)
     m_compress   = (mem ~ /compress/)
@@ -117,18 +160,76 @@ BEGIN { n=0; ma=0; sa=0; ea=0; ms=0; me=0; sm=0; se=0; em=0; es=0 }
     e_divergence = (eth ~ /divergence/)
     e_l0_only    = (eth ~ /l0/ && !e_l1plus && !e_divergence)
 
-    # Cross-axis catalysis (co-occurrence)
+    # Cross-axis catalysis (co-occurrence) — UNCHANGED logic
     if (m_correction && (s_drift_res || s_follow))  ms++
     if ((m_correction || m_save) && (e_l1plus || e_divergence))  me++
     if (s_plan && (m_compress || m_save))  sm++
     if ((s_plan || s_follow) && e_l0_only)  se++
     if ((e_l1plus || e_divergence) && m_correction)  em++
     if (e_divergence && (s_drift_flag || s_drift_res))  es++
+
+    # --- Per-session edge firing + source data for RWI pass ---
+    ms_fired = (m_correction && (s_drift_res || s_follow)) ? 1 : 0
+    me_fired = ((m_correction || m_save) && (e_l1plus || e_divergence)) ? 1 : 0
+    sm_fired = (s_plan && (m_compress || m_save)) ? 1 : 0
+    se_fired = ((s_plan || s_follow) && e_l0_only) ? 1 : 0
+    em_fired = ((e_l1plus || e_divergence) && m_correction) ? 1 : 0
+    es_fired = (e_divergence && (s_drift_flag || s_drift_res)) ? 1 : 0
+
+    # Determine if constituent events for each firing edge contain any human source.
+    # has_human_src = 1 if ANY constituent event is human-sourced, else 0.
+    # For RWI: recovery is human-free only when has_human_src = 0.
+    ms_hsrc = 1; me_hsrc = 1; sm_hsrc = 1; se_hsrc = 1; em_hsrc = 1; es_hsrc = 1
+
+    if (ms_fired) {
+        field_has_src(raw_mem, "correction"); s1 = _src
+        if (field_has_src(raw_str, "drift-resolved")) s2 = _src
+        else { field_has_src(raw_str, "follow"); s2 = _src }
+        ms_hsrc = (s1 == "h" || s2 == "h") ? 1 : 0
+    }
+    if (me_fired) {
+        if (field_has_src(raw_mem, "correction")) s1 = _src
+        else { field_has_src(raw_mem, "save"); s1 = _src }
+        if (field_has_src(raw_eth, "l[1-5]")) s2 = _src
+        else { field_has_src(raw_eth, "divergence"); s2 = _src }
+        me_hsrc = (s1 == "h" || s2 == "h") ? 1 : 0
+    }
+    if (sm_fired) {
+        field_has_src(raw_str, "plan"); s1 = _src
+        if (field_has_src(raw_mem, "compress")) s2 = _src
+        else { field_has_src(raw_mem, "save"); s2 = _src }
+        sm_hsrc = (s1 == "h" || s2 == "h") ? 1 : 0
+    }
+    if (se_fired) {
+        if (field_has_src(raw_str, "plan")) s1 = _src
+        else { field_has_src(raw_str, "follow"); s1 = _src }
+        field_has_src(raw_eth, "l0"); s2 = _src
+        se_hsrc = (s1 == "h" || s2 == "h") ? 1 : 0
+    }
+    if (em_fired) {
+        if (field_has_src(raw_eth, "l[1-5]")) s1 = _src
+        else { field_has_src(raw_eth, "divergence"); s1 = _src }
+        field_has_src(raw_mem, "correction"); s2 = _src
+        em_hsrc = (s1 == "h" || s2 == "h") ? 1 : 0
+    }
+    if (es_fired) {
+        field_has_src(raw_eth, "divergence"); s1 = _src
+        if (field_has_src(raw_str, "drift-flag")) s2 = _src
+        else { field_has_src(raw_str, "drift-resolved"); s2 = _src }
+        es_hsrc = (s1 == "h" || s2 == "h") ? 1 : 0
+    }
+
+    # Write per-session edge data: fired(0/1) has_human(0/1) per edge
+    printf "%d %d %d %d %d %d %d %d %d %d %d %d %d\n", \
+        n, ms_fired, me_fired, sm_fired, se_fired, em_fired, es_fired, \
+        ms_hsrc, me_hsrc, sm_hsrc, se_hsrc, em_hsrc, es_hsrc \
+        >> prov_file
 }
 END {
     if (n == 0) n = 1
-    printf "%.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", \
-        ma/n, sa/n, ea/n, ms/n, me/n, sm/n, se/n, em/n, es/n
+    printf "%.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %d %d %d %d\n", \
+        ma/n, sa/n, ea/n, ms/n, me/n, sm/n, se/n, em/n, es/n, \
+        total_ev, human_ev, env_ev, sys_ev
 }
 ')"
 
@@ -238,10 +339,50 @@ check_edge "S→E" "$s_to_e"
 check_edge "E→M" "$e_to_m"
 check_edge "E→S" "$e_to_s"
 
+# --- Recovery-without-intervention (RWI) ---
+# Per-edge cold-streak algorithm. An edge is "weak" after COLD_THRESHOLD
+# consecutive non-firings. When a weak edge fires with no human-sourced
+# constituent events, that's a human-free recovery.
+COLD_THRESHOLD=3
+
+read -r rwi_total rwi_ms rwi_me rwi_sm rwi_se rwi_em rwi_es <<< "$(awk -v threshold="$COLD_THRESHOLD" '
+BEGIN {
+    # Per-edge state: cold_streak, in_weakness, ever_fired, rwi
+    for (i = 1; i <= 6; i++) {
+        cold[i] = 0; weak[i] = 0; fired_ever[i] = 0; rwi[i] = 0
+    }
+}
+{
+    # Fields: session_idx ms_fired me_fired sm_fired se_fired em_fired es_fired
+    #         ms_hsrc me_hsrc sm_hsrc se_hsrc em_hsrc es_hsrc
+    for (i = 1; i <= 6; i++) {
+        edge_fired = $(i + 1)    # columns 2-7: fired flags
+        has_human  = $(i + 7)    # columns 8-13: human source flags
+
+        if (edge_fired) {
+            if (weak[i] && fired_ever[i]) {
+                # Recovery from weakness — check if human-free
+                if (!has_human) rwi[i]++
+            }
+            cold[i] = 0
+            weak[i] = 0
+            fired_ever[i] = 1
+        } else {
+            cold[i]++
+            if (cold[i] >= threshold) weak[i] = 1
+        }
+    }
+}
+END {
+    total = rwi[1]+rwi[2]+rwi[3]+rwi[4]+rwi[5]+rwi[6]
+    printf "%d %d %d %d %d %d %d\n", total, rwi[1], rwi[2], rwi[3], rwi[4], rwi[5], rwi[6]
+}
+' "$prov_tmp")"
+
 # --- One-liner mode (for health-check integration) ---
 if [ "$oneliner" = "--oneliner" ]; then
-    printf "  acs:           λ=%.2f gap=%.2f weak=%s(%.2f) [%s]\n" \
-        "$lambda1" "$spectral_gap" "$weakest_label" "$weakest_val" "$status"
+    printf "  acs:           λ=%.2f gap=%.2f weak=%s(%.2f) rwi=%d [%s]\n" \
+        "$lambda1" "$spectral_gap" "$weakest_label" "$weakest_val" "$rwi_total" "$status"
     exit 0
 fi
 
@@ -285,6 +426,26 @@ else
     echo "  FRAGILE"
 fi
 printf "  Weakest: %s (%.2f)\n" "$weakest_label" "$weakest_val"
+echo ""
+
+# --- Provenance histogram ---
+if [ "$total_events" -gt 0 ]; then
+    human_pct=$(awk -v h="$human_events" -v t="$total_events" 'BEGIN { printf "%d", (h/t)*100+0.5 }')
+    env_pct=$(awk -v e="$env_events" -v t="$total_events" 'BEGIN { printf "%d", (e/t)*100+0.5 }')
+    sys_pct=$(awk -v s="$sys_events" -v t="$total_events" 'BEGIN { printf "%d", (s/t)*100+0.5 }')
+else
+    human_pct=0; env_pct=0; sys_pct=0
+fi
+
+echo "Provenance:"
+printf "  human:       %d/%d  (%d%%)\n" "$human_events" "$total_events" "$human_pct"
+printf "  environment: %d/%d  (%d%%)\n" "$env_events" "$total_events" "$env_pct"
+printf "  system:      %d/%d  (%d%%)\n" "$sys_events" "$total_events" "$sys_pct"
+echo ""
+echo "Recovery:"
+printf "  Human-free recoveries: %d  (edges that went cold, then recovered without human-sourced events)\n" "$rwi_total"
+printf "  Per-edge: M→S:%d  M→E:%d  S→M:%d  S→E:%d  E→M:%d  E→S:%d\n" \
+    "$rwi_ms" "$rwi_me" "$rwi_sm" "$rwi_se" "$rwi_em" "$rwi_es"
 echo ""
 
 # --- Static recommendations per weak edge ---
