@@ -63,6 +63,9 @@ activation block. Supported platforms:
 If the target file doesn't exist: create it with just the activation block.
 If a TRELLIS block already exists: replace it in-place (idempotent).
 If no trailing newline before block: prepend one.
+After wiring: add the full path of the wired file to `config.yaml` field `platform.wired_files` so uninstall can find it.
+
+**Note:** The auto-mode classifier in Claude Code may block edits to `~/.claude/CLAUDE.md` (self-modification guard). If blocked, output the activation block and ask the user to paste it manually, or suggest: `! cat /tmp/trellis-block.txt >> ~/.claude/CLAUDE.md`
 
 ### 5. Assemble directives
 
@@ -76,7 +79,9 @@ Ask the user for:
 - What they're working on
 - Key collaborators (optional)
 
-Fill in `memory/MEMORY.md` Identity section.
+**Do not infer identity from the existing platform config file.** Always ask directly — the existing config may belong to a different system.
+
+Fill in `memory/MEMORY.md` Identity section and `config.yaml` identity fields.
 
 ### 7. Write breadcrumb
 

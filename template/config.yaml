@@ -119,6 +119,7 @@ platform:
   type: claude_code              # claude_code | codex | cursor
   activation_file: CLAUDE.md     # File where the activation block is written
   # Codex: AGENTS.md. Cursor: .cursorrules. Claude Code: CLAUDE.md.
+  wired_files: []                # Paths where TRELLIS blocks were added (populated during install, used by uninstall)
 
 # --- Sync ---
 # Settings for memory-sync.sh

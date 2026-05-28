@@ -12,10 +12,13 @@ Complete removal of Trellis from the system.
 2. **Confirm intent:** Remove / Reset / Cancel
 3. **Safety check:** Verify directory looks like Trellis (has config.yaml, memory/, plugins/). If not, REFUSE to delete.
 4. **Final snapshot:** If git available, commit all changes. If remote configured, push.
-5. **Remove activation blocks:** Find and remove `<!-- TRELLIS START -->` ... `<!-- TRELLIS END -->` markers from:
-   - `~/.claude/CLAUDE.md` (Claude Code)
-   - Any paths listed in config.yaml `projects` list
-   - `~/.cursor/rules/trellis.mdc` (Cursor — delete entire file)
+5. **Remove activation blocks:** Read `config.yaml` field `platform.wired_files` for the list of files that were wired during install. For each file:
+   - Find and remove everything between `<!-- TRELLIS START -->` and `<!-- TRELLIS END -->` (inclusive)
+   - If the file is empty after removal, delete it
+   - For Cursor MDC files (`trellis.mdc`): delete the entire file
+   - If `wired_files` is empty, check the default locations:
+     - `~/.claude/CLAUDE.md` (Claude Code)
+     - `~/.cursor/rules/trellis.mdc` (Cursor)
 6. **Delete installation:** `rm -rf ~/.trellis/` (or custom path)
 7. **Remove breadcrumb:** `rm -f ~/.config/trellis/home`
 8. **Confirm:** Note that remote backup (if Tier 2+) is NOT deleted and remains recoverable.
