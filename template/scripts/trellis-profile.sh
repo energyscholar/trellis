@@ -65,33 +65,35 @@ set_current_profile() {
     fi
 }
 
-get_acs_oneliner() {
+get_session_count() {
     local dir="$1"
     local log="$dir/memory/session-log.md"
-    local count=0
-    [ -f "$log" ] && count=$(awk -F'|' '/^\| S[0-9]/ { n++ } END { print n+0 }' "$log")
+    if [ -f "$log" ]; then
+        awk -F'|' '/^\| S[0-9]/ { n++ } END { print n+0 }' "$log"
+    else
+        echo "0"
+    fi
+}
 
-    if [ "$count" -lt 10 ]; then
-        echo "${count}s, λ —"
+get_acs_oneliner() {
+    local dir="$1"
+    local count
+    count=$(get_session_count "$dir")
+    if [ "$count" -eq 0 ]; then
+        echo "$count|  --|  --|--|DORMANT"
         return
     fi
-
-    # Compute ACS by pointing acs-check.sh at the profile directory
-    local acs_script="$TRELLIS/scripts/acs-check.sh"
-    if [ -x "$acs_script" ]; then
-        local raw
-        raw=$(TRELLIS_HOME="$dir" bash "$acs_script" --oneliner 2>/dev/null || true)
-        # Parse: "  acs:           λ=0.85 gap=0.20 weak=S→M(0.17) [NEAR-CRITICAL]"
-        local lambda status
-        lambda=$(echo "$raw" | sed -n 's/.*λ=\([0-9.]*\).*/\1/p' 2>/dev/null || true)
-        status=$(echo "$raw" | sed -n 's/.*\[\([A-Z-]*\)\].*/\1/p' 2>/dev/null || true)
-        if [ -n "$lambda" ]; then
-            echo "${count}s, λ=${lambda} ${status}"
-        else
-            echo "${count}s, λ —"
-        fi
+    local acs_line
+    acs_line=$(ACS_MIN_SESSIONS=0 TRELLIS_HOME="$dir" bash "$TRELLIS/scripts/acs-check.sh" --oneliner 2>/dev/null) || true
+    if echo "$acs_line" | grep -q 'λ='; then
+        local lambda gap weak status
+        lambda=$(echo "$acs_line" | sed 's/.*λ=\([0-9.]*\).*/\1/')
+        gap=$(echo "$acs_line" | sed 's/.*gap=\([0-9.]*\).*/\1/')
+        weak=$(echo "$acs_line" | sed 's/.*weak=\([^[:space:]]*\).*/\1/')
+        status=$(echo "$acs_line" | sed 's/.*\[\([^]]*\)\].*/\1/')
+        echo "$count|$lambda|$gap|$weak|$status"
     else
-        echo "${count}s, λ —"
+        echo "$count|  --|  --|--|--"
     fi
 }
 
@@ -126,11 +128,15 @@ cmd_list() {
     echo "Trellis Memory Profiles"
     echo "======================="
     echo ""
+    printf "       %-16s  %4s  %5s  %5s  %-13s %-14s  %s\n" \
+        "Name" "Sess" "λ₁" "Gap" "Weakest" "Status" ""
+    printf "       %-16s  %4s  %5s  %5s  %-13s %-14s  %s\n" \
+        "----------------" "----" "-----" "-----" "-------------" "--------------" ""
 
     local i=0
     for pdir in "$PROFILES_DIR"/*/; do
         [ -d "$pdir" ] || continue
-        local name desc sessions marker
+        local name desc acs_data marker pin_marker
         name=$(basename "$pdir")
         [ "$name" = "_autosave" ] && continue
 
@@ -139,16 +145,24 @@ cmd_list() {
         if [ -f "$pdir/profile.yaml" ]; then
             desc=$(grep '^description:' "$pdir/profile.yaml" 2>/dev/null | sed 's/^description:[[:space:]]*//' | tr -d '"'"'")
         fi
-        sessions=$(get_acs_oneliner "$pdir")
+
+        acs_data=$(get_acs_oneliner "$pdir")
+        local sessions lambda gap weak status
+        sessions=$(echo "$acs_data" | cut -d'|' -f1)
+        lambda=$(echo "$acs_data" | cut -d'|' -f2)
+        gap=$(echo "$acs_data" | cut -d'|' -f3)
+        weak=$(echo "$acs_data" | cut -d'|' -f4)
+        status=$(echo "$acs_data" | cut -d'|' -f5)
 
         marker=" "
-        if [ "$name" = "$current" ]; then
-            marker="*"
-        fi
+        [ "$name" = "$current" ] && marker="*"
 
-        local pin_marker=""
-        is_pinned "$name" && pin_marker=" [pinned]"
-        printf "  %s %d. %-20s %s%s  (%s)\n" "$marker" "$i" "$name" "${desc:-(no description)}" "$pin_marker" "$sessions"
+        pin_marker=""
+        is_pinned "$name" && pin_marker="[pinned]"
+
+        printf "  %s %d. %-16s  %4s  %5s  %5s  %-13s %-14s  %s\n" \
+            "$marker" "$i" "$name" "$sessions" "$lambda" "$gap" "$weak" "$status" "$pin_marker"
+        [ -n "$desc" ] && printf "       %-16s  %s\n" "" "$desc"
     done
 
     if [ "$i" -eq 0 ]; then
@@ -187,14 +201,14 @@ cmd_save() {
 
     # Compute session count from the snapshot
     local sessions
-    sessions=$(get_acs_oneliner "$target")
+    sessions=$(get_session_count "$target")
 
     # Write manifest
     cat > "$target/profile.yaml" <<MANIFEST
 name: "$name"
 description: "$desc"
 created: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-sessions: $sessions
+sessions: $sessions sessions
 MANIFEST
 
     set_current_profile "$name"
@@ -205,7 +219,7 @@ MANIFEST
         git -C "$TRELLIS" commit -m "Profile saved: $name" 2>/dev/null || true
     fi
 
-    echo "Saved: $name ($sessions)"
+    echo "Saved: $name ($sessions sessions)"
     [ -n "$desc" ] && echo "  $desc"
 }
 
@@ -237,7 +251,7 @@ cmd_load() {
 name: "_autosave"
 description: "Auto-saved before switching to $name"
 created: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-sessions: $(get_acs_oneliner "$autosave")
+sessions: $(get_session_count "$autosave") sessions
 MANIFEST
 
     # Load target profile
@@ -259,8 +273,8 @@ MANIFEST
     fi
 
     local sessions
-    sessions=$(get_acs_oneliner "$TRELLIS")
-    echo "Loaded: $name ($sessions)"
+    sessions=$(get_session_count "$TRELLIS")
+    echo "Loaded: $name ($sessions sessions)"
     if [ -f "$target/profile.yaml" ]; then
         local desc
         desc=$(grep '^description:' "$target/profile.yaml" 2>/dev/null | sed 's/^description:[[:space:]]*//' | tr -d '"'"'")
@@ -311,9 +325,15 @@ cmd_interactive() {
     echo "Trellis Memory Profiles"
     echo "======================="
     echo ""
+    printf "       %-16s  %4s  %5s  %5s  %-13s %-14s  %s\n" \
+        "Name" "Sess" "λ₁" "Gap" "Weakest" "Status" ""
+    printf "       %-16s  %4s  %5s  %5s  %-13s %-14s  %s\n" \
+        "----------------" "----" "-----" "-----" "-------------" "--------------" ""
 
     local names=()
     local i=0
+    local current
+    current=$(get_current_profile)
     for pdir in "$PROFILES_DIR"/*/; do
         [ -d "$pdir" ] || continue
         local name
@@ -326,15 +346,23 @@ cmd_interactive() {
         if [ -f "$pdir/profile.yaml" ]; then
             desc=$(grep '^description:' "$pdir/profile.yaml" 2>/dev/null | sed 's/^description:[[:space:]]*//' | tr -d '"'"'")
         fi
-        local sessions
-        sessions=$(get_acs_oneliner "$pdir")
-        local current marker
-        current=$(get_current_profile)
-        marker=" "
+
+        local acs_data sessions lambda gap weak status
+        acs_data=$(get_acs_oneliner "$pdir")
+        sessions=$(echo "$acs_data" | cut -d'|' -f1)
+        lambda=$(echo "$acs_data" | cut -d'|' -f2)
+        gap=$(echo "$acs_data" | cut -d'|' -f3)
+        weak=$(echo "$acs_data" | cut -d'|' -f4)
+        status=$(echo "$acs_data" | cut -d'|' -f5)
+
+        local marker=" "
         [ "$name" = "$current" ] && marker="*"
         local pin_marker=""
-        is_pinned "$name" && pin_marker=" [pinned]"
-        printf "  %s %d. %-20s %s%s  (%s)\n" "$marker" "$i" "$name" "${desc:-(no description)}" "$pin_marker" "$sessions"
+        is_pinned "$name" && pin_marker="[pinned]"
+
+        printf "  %s %d. %-16s  %4s  %5s  %5s  %-13s %-14s  %s\n" \
+            "$marker" "$i" "$name" "$sessions" "$lambda" "$gap" "$weak" "$status" "$pin_marker"
+        [ -n "$desc" ] && printf "       %-16s  %s\n" "" "$desc"
     done
 
     if [ "$i" -eq 0 ]; then

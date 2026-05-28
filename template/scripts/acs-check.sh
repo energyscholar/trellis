@@ -28,7 +28,7 @@ get_config() {
 }
 
 acs_window=$(get_config "acs_window" "20")
-acs_min_sessions=$(get_config "acs_min_sessions" "10")
+acs_min_sessions="${ACS_MIN_SESSIONS:-$(get_config "acs_min_sessions" "10")}"
 oneliner="${1:-}"
 
 # --- Parse session log ---
