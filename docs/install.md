@@ -90,7 +90,27 @@ mkdir -p "$HOME/.config/trellis"
 echo "$HOME/.trellis" > "$HOME/.config/trellis/home"
 ```
 
-### 8. Verify
+### 8. Wire SessionEnd hook (optional but recommended)
+
+Add the Trellis session-end hook to Claude Code's settings.json. This auto-syncs
+memory and updates the active profile when a session ends.
+
+For Claude Code, add to `~/.claude/settings.json` under `hooks.SessionEnd`:
+```json
+{
+  "type": "command",
+  "command": "~/.trellis/scripts/trellis-hook-session-end.sh",
+  "timeout": 15
+}
+```
+
+If `SessionEnd` already has hooks (from other systems), add this hook to the
+existing array — multiple hooks coexist.
+
+**Note:** The auto-mode classifier may block edits to settings.json. If so,
+the user must add it manually.
+
+### 9. Verify
 
 - [ ] `~/.trellis/config.yaml` exists
 - [ ] `~/.trellis/memory/MEMORY.md` exists and has identity filled in

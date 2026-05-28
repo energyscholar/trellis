@@ -83,6 +83,20 @@ Rebuild: `scripts/rebuild-db.sh`. Ingest: `scripts/ingest-memories.sh`.
 ## Structural Discipline
 (populated when triad plugin is active)
 
+### Memory Profiles
+
+Trellis supports named snapshots of the entire memory state for comparison, experimentation, or rollback.
+
+**Commands** (run via `scripts/trellis-profile.sh`):
+- `save <name> -d "description"` — snapshot current memory/ + config to a named profile
+- `load <name>` — switch to a named profile (auto-saves current state first)
+- `list` — show all profiles with description and session count
+- `current` — show active profile name
+
+**When the user says** "switch profile", "load profile", "save profile", or "profiles": run the appropriate script command or present the profile list for selection.
+
+After loading a profile: re-read `memory/MEMORY.md` and `memory/corrections.md` to activate the new state.
+
 ## Response Style
 
 - Concise. No preambles. Lead with answer or action.
