@@ -20,7 +20,8 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 5. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
 6. Check health metrics; if anomalies, investigate
 7. After 5+ sessions: run `scripts/health-check.sh` every ~5 sessions
-8. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
+8. **SQLite bootstrap (session 2+):** If `database.enabled` is true in config and no `.db` file exists yet, run `scripts/rebuild-db.sh` then `scripts/ingest-memories.sh` for each memory file. This is a one-time setup — subsequent sessions only need rebuild if memories changed significantly.
+9. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
 
 ### Session End
 

@@ -174,6 +174,31 @@ fi
 drift="0.00"
 echo "  drift:         $drift  [OK]"
 
+# SQLite acceleration layer
+db_enabled=$(get_config "enabled" "true")
+db_path="$TRELLIS/$(get_config "path" "trellis.db")"
+if [ "$db_enabled" = "true" ]; then
+    if [ -f "$db_path" ] && command -v sqlite3 &>/dev/null; then
+        table_count=$(sqlite3 "$db_path" "SELECT count(*) FROM sqlite_master WHERE type='table';" 2>/dev/null || echo 0)
+        integrity=$(sqlite3 "$db_path" "PRAGMA integrity_check;" 2>/dev/null || echo "FAIL")
+        if [ "$integrity" = "ok" ] && [ "$table_count" -ge 15 ]; then
+            echo "  sqlite:        ON ($table_count tables, integrity OK)  [OK]"
+            checks_ok=$((checks_ok + 1))
+        else
+            echo "  sqlite:        ON ($table_count tables, integrity: $integrity)  [WARN]"
+            warnings=$((warnings + 1))
+        fi
+    elif [ ! -f "$db_path" ]; then
+        echo "  sqlite:        ON (not built yet — run rebuild-db.sh)  [WARN]"
+        warnings=$((warnings + 1))
+    elif ! command -v sqlite3 &>/dev/null; then
+        echo "  sqlite:        ON (sqlite3 not installed)  [WARN]"
+        warnings=$((warnings + 1))
+    fi
+else
+    echo "  sqlite:        OFF"
+fi
+
 # ACS (cross-axis catalysis) — delegates to acs-check.sh
 acs_script="$TRELLIS/scripts/acs-check.sh"
 if [ -x "$acs_script" ]; then

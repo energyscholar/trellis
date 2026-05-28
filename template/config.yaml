@@ -95,7 +95,7 @@ confidence:
 # --- Database ---
 # SQLite acceleration layer. Flat files remain source of truth.
 database:
-  enabled: false                 # Set true to enable DB-backed queries
+  enabled: true                  # SQLite acceleration (deterministic cache, flat files remain source of truth)
   path: trellis.db               # Relative to TRELLIS_HOME
   fts5: true                     # Full-text search via FTS5
   rebuild_min_tables: 15         # Minimum table count for rebuild verification
