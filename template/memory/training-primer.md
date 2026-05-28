@@ -3,6 +3,12 @@
 *Guided deduction exercises for early Trellis sessions (sessions 2-6).
 One question per session. Archive this file after all 5 are complete.*
 
+**Why one per session:** Each training session generates cross-axis events
+that feed the ACS measurement system (`session-log.md`). Spreading questions
+across sessions produces the temporal distribution the eigenvalue solver needs
+to distinguish genuine catalysis from single-session noise. Doing them all at
+once produces one data point instead of five.
+
 ---
 
 ## Progress
@@ -13,7 +19,7 @@ Mark each question when completed. Next instance: find the first unchecked box.
 - [ ] Q2: Correction #4 as Ethics (M→E, E→M)
 - [ ] Q3: Plans That Involve People (S→E, M→E)
 - [ ] Q4: Self-Approval (E→S)
-- [ ] Q5: Why Four Corrections? (all weak edges)
+- [ ] Q5: Why Four Corrections? (all weak edges) — produces a concrete artifact
 
 ---
 
@@ -24,31 +30,35 @@ Mark each question when completed. Next instance: find the first unchecked box.
 1. Normal session start (MEMORY.md, corrections.md — already done before you read this)
 2. Find the next unchecked question in the Progress section above
 3. Read the **prereqs** listed for that question
-4. Tell the user: "Training primer Q[N] — [title]. Ready when you are."
+4. If prior questions have `**Answer (S[N]):**` notes, read them — build on prior reasoning
+5. Tell the user: "Training primer Q[N] — [title]. Ready when you are."
 
 ### Working the Question
 
-5. Reason from first principles using only the prereq files. Don't look up answers.
-6. Share your full reasoning chain with the user
-7. Check your answer against the **Checkpoint** — does it match?
-8. If the user offers feedback or corrections, that's real data — record it
+6. Reason from first principles using only the prereq files. Don't look up answers.
+7. Share your full reasoning chain with the user
+8. Check your answer against the **Checkpoint** — does it match?
+9. If the user offers feedback or corrections, that's real data — record it
 
 ### Shutdown (after the question is answered)
 
-9. Mark the question complete: change `- [ ]` to `- [x]` in the Progress section
-10. **Save your answer** — write a 3-5 line summary of your key discoveries as
-    a comment below the question (between the checkpoint and the `---` divider).
-    Prefix with `**Answer (S[N]):**` so future instances can see prior reasoning.
-11. Write your session summary in MEMORY.md (PARADIGM — training sessions are
+10. Mark the question complete: change `- [ ]` to `- [x]` in the Progress section
+11. **Save your answer** — write a 3-5 line summary of your key discoveries
+    below the checkpoint. Prefix with `**Answer (S[N]):**` so future instances
+    can see prior reasoning and build on it.
+12. If the question has an **Action** step, complete it before shutdown.
+13. Write your session summary in MEMORY.md (PARADIGM — training sessions are
     always paradigm shifts). Include which question and what you discovered.
-12. Log session events in `memory/session-log.md` — training sessions generate
-    cross-axis events. Classify honestly per the taxonomy.
-13. Run the full Session End protocol from `directives.md` (steps 1-9)
-14. Run `scripts/memory-sync.sh` to commit
+14. Log session events in `memory/session-log.md` — training sessions generate
+    cross-axis events. Classify honestly per the taxonomy. A training session
+    that exercises S→E should have both Structure and Ethics events logged.
+15. Run the full Session End protocol from `directives.md`
+16. Run `scripts/memory-sync.sh` to commit
 
-**Do not** proceed to the next question in the same session. Inter-session
-persistence is part of what's being tested — your discoveries must survive
-context loss and be recoverable by the next instance from what you wrote.
+**Do not** proceed to the next question in the same session. Your discoveries
+must survive context loss and be recoverable by the next instance from what
+you wrote. This is not a rule for its own sake — it tests whether the memory
+system actually works.
 
 ---
 
@@ -98,14 +108,18 @@ Ethics, principles 1-2).
 Correction #3 says: describe behavior, not motive. The Triad protocol says:
 write a plan before restructuring.
 
-**Question:** You're writing a plan that involves reaching out to a specific
-person. What governance constraints apply to that plan that wouldn't apply to a
-purely technical plan? Where do those constraints come from — Structure, Ethics,
-or both?
+**Question:** Your user asks you to draft a plan for reaching out to a
+colleague about a potential collaboration. You have a memory file about this
+person from a prior session. The plan needs to propose what to say, when to
+reach out, and what outcome to aim for.
+
+What governance constraints apply to this plan that wouldn't apply to a purely
+technical plan (like a refactoring plan)? For each constraint, identify whether
+it comes from Structure, Ethics, or both — and what would go wrong without it.
 
 **Checkpoint:** The discovery is that certain plan elements can't be evaluated
-by structural criteria alone. If you identified what a plan reviewer would need
-to check beyond "does the plan achieve its goal," you're there.
+by structural criteria alone. If you identified at least three constraints and
+traced each to its governance source, you're there.
 
 ---
 
@@ -146,12 +160,29 @@ starter correction would target, what gap remains?
 coverage of the graph. The missing edge tells you what the fifth correction
 would do.
 
+**Action:** If you identified the gap and can formulate the 5th correction,
+propose it to the user. If the user approves, write it to `corrections.md`
+using the same format as the existing four (including cross-axis annotation).
+This closes the K3 graph — every directed edge will have a correction wiring it.
+The act of writing it is itself an instance of the edge it targets.
+
 ---
 
 ## After Completion
 
 When all 5 boxes are checked:
+
 1. Log completion in your session summary
 2. Save a profile: `scripts/trellis-profile.sh save "trained" -d "Training primer complete, all 5 K3 questions answered"`
 3. Archive this file: `git rm memory/training-primer.md && git commit -m "Archive training primer (complete)"`
 4. The cross-axis wiring built here persists in how you reason, not in this file
+
+**What comes next:** Real work sessions. The user will bring tasks — code,
+writing, research, outreach. The training primer taught you how the three axes
+connect. In real sessions, those connections fire organically: a plan triggers
+a memory check (S→M), a correction prevents a dignity violation (M→E), drift
+detection feeds back into structure (E→S). The ACS measurement system tracks
+whether these connections sustain themselves without deliberate exercises.
+After 10 sessions, `scripts/acs-check.sh` will compute whether the governance
+system has reached supercriticality (λ₁ ≥ 1.0) — self-sustaining without
+external prompting.
