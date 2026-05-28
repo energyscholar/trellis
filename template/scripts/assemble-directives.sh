@@ -20,10 +20,17 @@ if [ ! -d "$TRELLIS" ]; then
 fi
 
 config="$TRELLIS/config.yaml"
-base_directives="$TRELLIS/directives.md"
 
-if [ ! -f "$base_directives" ]; then
-    echo "Base directives not found at $base_directives" >&2
+# Read from unassembled base template; write to assembled directives
+if [ -f "$TRELLIS/directives-base.md" ]; then
+    read_from="$TRELLIS/directives-base.md"
+else
+    read_from="$TRELLIS/directives.md"
+fi
+write_to="$TRELLIS/directives.md"
+
+if [ ! -f "$read_from" ]; then
+    echo "Base directives not found at $read_from" >&2
     exit 1
 fi
 
@@ -46,7 +53,7 @@ while IFS= read -r line; do
 done < "$config"
 
 # Start with base directives
-output=$(cat "$base_directives")
+output=$(cat "$read_from")
 
 # For each active plugin, replace its section placeholder with actual content
 for plugin in "${plugins[@]}"; do
@@ -95,8 +102,8 @@ done
 
 # Write or print
 if [ "${1:-}" = "--write" ]; then
-    echo "$output" > "$base_directives"
-    echo "Directives assembled: $base_directives"
+    echo "$output" > "$write_to"
+    echo "Directives assembled: $write_to"
 else
     echo "$output"
 fi

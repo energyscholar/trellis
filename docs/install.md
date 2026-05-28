@@ -69,8 +69,14 @@ After wiring: add the full path of the wired file to `config.yaml` field `platfo
 
 ### 5. Assemble directives
 
-Run `scripts/assemble-directives.sh --write` to assemble base directives
-with active plugin fragments.
+Save the unassembled template for idempotent reassembly:
+```bash
+cp "$HOME/.trellis/directives.md" "$HOME/.trellis/directives-base.md"
+```
+
+Then run `scripts/assemble-directives.sh --write` to assemble base directives
+with active plugin fragments. The script reads from `directives-base.md` and
+writes the assembled result to `directives.md`.
 
 ### 6. Personalize
 
@@ -122,6 +128,30 @@ the user must add it manually.
 - [ ] Activation block present in platform config file
 - [ ] `scripts/health-check.sh` reports all OK (ACS line shows "need 10+ sessions")
 - [ ] `scripts/topology-check.sh` reports 3/3
+
+## Codex Notes
+
+Codex runs in an ephemeral cloud sandbox — the filesystem is destroyed after each task.
+Trellis on Codex requires **Tier 2** (remote git) so memories survive between sessions.
+
+During install on Codex:
+- Set `platform.type: codex` in config.yaml
+- Set `storage.tier: 2`, `auto_push: true`, `auto_pull: true`
+- Set `remote_url` to the user's private Trellis repo
+- Wire `AGENTS.md` instead of `CLAUDE.md`
+- Skip hook wiring (Codex has no SessionEnd hooks — the AI follows shutdown directives)
+
+The SQLite acceleration layer works well on Codex: it's a deterministic cache rebuilt
+from flat files each session via `scripts/rebuild-db.sh`.
+
+## Updates
+
+To check for updates: `scripts/trellis-update.sh --check`
+To apply: `scripts/trellis-update.sh`
+
+The update script overwrites system files (scripts, plugins, directives template) but
+never touches user data (memory files, config, profiles). New config keys are handled
+via script defaults — existing config.yaml files continue to work without modification.
 
 ## Restore from Backup
 

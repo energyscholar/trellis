@@ -1,0 +1,8 @@
+# SQLite acceleration layer (rebuilt from flat files, not source of truth)
+*.db
+*.db-wal
+*.db-shm
+
+# Session state (ephemeral)
+.session-active
+.recovering

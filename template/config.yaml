@@ -2,7 +2,7 @@
 # All user-controllable parameters live here. Scripts and directives read this file.
 # Paths are relative to TRELLIS_HOME (~/.trellis/) unless absolute.
 
-version: 0.1.0
+version: 0.4.0
 
 # --- Identity ---
 # Who this Trellis instance belongs to. Used in commit messages, attribution.
@@ -129,6 +129,11 @@ sync:
   crlf_check: true               # Warn on CRLF line endings
   checksum_drift: true           # Track file checksums between syncs
   lock_timeout: 0                # Seconds to wait for ingest lock (0 = fail immediately)
+
+# --- Update ---
+# Settings for trellis-update.sh
+update:
+  repo_url: "https://github.com/energyscholar/trellis.git"
 
 # --- Maintenance ---
 # Opportunistic self-maintenance settings

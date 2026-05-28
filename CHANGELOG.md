@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] — 2026-05-27
+
+### Added
+- Update mechanism (`scripts/trellis-update.sh`): pull latest from GitHub, overwrite system files, preserve user data. `--check` flag for dry run.
+- Diagnostic report (`scripts/trellis-diagnostic.sh`): structured metadata report for alpha tester feedback. No personal data, user-initiated copy-paste only.
+- Alpha testing guide (`docs/alpha-testing.md`): setup, session workflow, feedback prompts, troubleshooting
+- Directives-base.md pattern: `assemble-directives.sh` reads from unassembled base template, writes to assembled directives.md. Idempotent reassembly.
+- `config.yaml`: `update.repo_url` field for configurable update source
+- Codex install notes in `docs/install.md` (Tier 2, auto_push/pull, AGENTS.md)
+- Update/diagnostic awareness in `directives.md`
+
+### Changed
+- `assemble-directives.sh`: reads from `directives-base.md` if present (fixes duplicate assembly bug)
+- `docs/install.md`: directives-base.md step, Codex notes, update section
+- `docs/uninstall.md`: SessionEnd hook removal step, Codex-specific notes
+- Version bumped to 0.4.0
+
 ## [0.3.1] — 2026-05-27
 
 ### Added

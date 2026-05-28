@@ -114,6 +114,12 @@ Trellis supports named snapshots of the entire memory state for comparison, expe
 - After a training milestone: `save "post-q2" -d "After primer Q2, correction #5 added"`
 - Before risky changes: `save "pre-experiment"` so you can roll back
 
+## Updates & Diagnostics
+
+**Update:** When the user asks to update Trellis, run `scripts/trellis-update.sh`. To check without applying: `scripts/trellis-update.sh --check`. Updates overwrite system files (scripts, plugins, directives template) but never touch user data (memory, config, profiles).
+
+**Diagnostic:** When the user asks for a diagnostic report (or "run trellis diagnostic"), run `scripts/trellis-diagnostic.sh`. The output contains structural metadata only — no memory content, corrections text, or personal data. The user controls what they share.
+
 ## Response Style
 
 - Concise. No preambles. Lead with answer or action.

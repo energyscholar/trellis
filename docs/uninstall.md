@@ -19,9 +19,15 @@ Complete removal of Trellis from the system.
    - If `wired_files` is empty, check the default locations:
      - `~/.claude/CLAUDE.md` (Claude Code)
      - `~/.cursor/rules/trellis.mdc` (Cursor)
-6. **Delete installation:** `rm -rf ~/.trellis/` (or custom path)
-7. **Remove breadcrumb:** `rm -f ~/.config/trellis/home`
-8. **Confirm:** Note that remote backup (if Tier 2+) is NOT deleted and remains recoverable.
+6. **Remove SessionEnd hook** (Claude Code only): Check `~/.claude/settings.json` for the Trellis hook entry under `hooks.SessionEnd`. Remove the entry that references `trellis-hook-session-end.sh`. If it was the only hook, remove the empty array. If settings.json can't be edited (auto-mode block), tell the user to remove it manually.
+7. **Delete installation:** `rm -rf ~/.trellis/` (or custom path)
+8. **Remove breadcrumb:** `rm -f ~/.config/trellis/home`
+9. **Confirm:** Note that remote backup (if Tier 2+) is NOT deleted and remains recoverable.
+
+### Codex-Specific
+Codex installs don't have SessionEnd hooks to remove. The activation block is in
+`AGENTS.md` within the repo. After removing it, the remote repo still contains all
+memory history — delete the GitHub repo separately if desired.
 
 ## Reset
 
@@ -47,3 +53,5 @@ Clear memories but keep protocols, plugins, and scripts. For starting fresh.
 | Activation block corrupted | Regex fallback, then manual instructions |
 | Config file empty after marker removal | Delete the file |
 | Directory doesn't look like Trellis | REFUSE to delete |
+| SessionEnd hook can't be removed (auto-mode) | Print manual instructions |
+| Codex install (no hooks) | Skip hook removal step |
