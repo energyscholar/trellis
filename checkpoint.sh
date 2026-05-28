@@ -71,7 +71,7 @@ cmd_load() {
 cmd_nuke() {
     if [ ! -d "$TRELLIS" ]; then
         echo "Nothing to nuke — $TRELLIS doesn't exist"
-        exit 0
+        return 0
     fi
 
     rm -rf "$TRELLIS"
