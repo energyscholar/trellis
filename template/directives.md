@@ -16,11 +16,11 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 1. Read `memory/MEMORY.md` (auto-loaded)
 2. **Identity check:** If identity fields are empty (session 0), ask the user for their name and what they're working on. Do not infer identity from any existing config file — it may belong to a different system.
 3. Read `memory/corrections.md` -- check every correction
-4. If `memory/training-primer.md` exists and sessions < 10: read it, work through the **next unfinished** question (one per session, not all at once)
-4. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
-5. Check health metrics; if anomalies, investigate
-6. After 5+ sessions: run `scripts/health-check.sh` every ~5 sessions
-7. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
+4. If `memory/training-primer.md` exists and sessions < 10: read it, follow its Session Procedure (one question per session)
+5. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
+6. Check health metrics; if anomalies, investigate
+7. After 5+ sessions: run `scripts/health-check.sh` every ~5 sessions
+8. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
 
 ### Session End
 
