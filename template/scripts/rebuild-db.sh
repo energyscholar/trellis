@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # rebuild-db.sh — Build trellis.db from schema + data. Atomic swap.
 # Flat files remain source of truth. DB is a read cache.
+#
+# Usage:
+#   rebuild-db.sh              Force rebuild
+#   rebuild-db.sh --if-stale   Only rebuild if memory files changed since last build
 set -euo pipefail
 
 # --- TRELLIS_HOME resolution (canonical — see docs/architecture.md) ---
@@ -20,6 +24,23 @@ DB="${TRELLIS}/trellis.db"
 DB_NEW="${DB}.new"
 DB_BAK="${DB}.bak"
 DB_DIR="${SCRIPT_DIR}/db"
+DB_CHECKSUM="${TRELLIS}/.db-memory-checksum"
+
+# --- Staleness check ---
+compute_memory_checksum() {
+    md5sum "$TRELLIS"/memory/*.md 2>/dev/null | sort | md5sum | awk '{print $1}'
+}
+
+if [ "${1:-}" = "--if-stale" ]; then
+    current_checksum=$(compute_memory_checksum)
+    if [ -f "$DB" ] && [ -f "$DB_CHECKSUM" ]; then
+        stored_checksum=$(cat "$DB_CHECKSUM" 2>/dev/null || echo "")
+        if [ "$current_checksum" = "$stored_checksum" ]; then
+            exit 0
+        fi
+    fi
+    echo "DB stale (memory files changed). Rebuilding..."
+fi
 
 cleanup() { rm -f "$DB_NEW"; }
 restore_backup() {
@@ -132,5 +153,8 @@ fi
 trap - EXIT
 mv "$DB_NEW" "$DB"
 rm -f "$DB_BAK"
+
+# Step 8: Stamp memory checksum so --if-stale knows this build is fresh
+compute_memory_checksum > "$DB_CHECKSUM"
 
 echo "Rebuild complete: $DB (${table_count} tables, integrity OK)"

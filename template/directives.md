@@ -14,15 +14,16 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 ### Session Start
 
 1. Read `memory/MEMORY.md` (auto-loaded)
-2. **Identity check:** If identity fields are empty (session 0), ask the user for their name and what they're working on. Do not infer identity from any existing config file — it may belong to a different system.
+2. **Identity check (first-session gate):** If identity fields are empty (session 0), this is a new user. STOP here — ask for their name and what they're working on BEFORE running any technical checks. Do not infer identity from the system username, file paths, environment variables, or any existing config — this profile may have been installed by someone else. Use an open-ended question, not pre-filled options. Only after identity is set: proceed to step 3.
 3. Read `memory/corrections.md` -- check every correction
 3b. **Proprioceptive check:** If `scripts/proprioceptive-check.sh` exists, run it. Read the ADJUSTMENTS section. Execute up to 2 mechanical adjustments silently. Each adjustment has a `[set_point:X, prov:Y]` tag -- use these when logging the action in the session-log entry. Source follows the set-point provenance (`human` in v1). If the script fails, proceed normally but note `proprioception-skipped(e)` in the session log.
 4. If `memory/training-primer.md` exists and sessions < 10: read it, follow its Session Procedure (one question per session)
 5. If MEMORY.md is near the line cap: read `memory/protocol.md` Section 3, compress
 6. Check health metrics; if anomalies, investigate
 7. After 5+ sessions: run `scripts/health-check.sh` every ~5 sessions
-8. **SQLite bootstrap (session 2+):** If `database.enabled` is true in config and no `.db` file exists yet, run `scripts/rebuild-db.sh` then `scripts/ingest-memories.sh` for each memory file. This is a one-time setup — subsequent sessions only need rebuild if memories changed significantly.
+8. **SQLite bootstrap (session 2+):** If `database.enabled` is true in config and no `.db` file exists yet, run `scripts/rebuild-db.sh` then `scripts/ingest-memories.sh` for each memory file. This is a one-time setup — subsequent sessions use `rebuild-db.sh --if-stale` (auto-detects memory changes via checksum).
 9. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
+10. **Post-compression recovery:** If this session began from a compression boundary (context was summarized), compare checksums in the MEMORY.md File Map against actual files. Re-read any file whose checksum mismatches — your in-context understanding may be stale. Priority: corrections.md first, then any feedback files referenced in the compressed summary.
 
 ### Session End
 

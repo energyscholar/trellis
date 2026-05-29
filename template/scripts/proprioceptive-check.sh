@@ -286,6 +286,28 @@ elif [ "$storage_status" = "NO DB" ] && [ "$db_enabled" = "true" ]; then
     adjustments+=("[set_point:integrity_check, prov:environment] Database not built — run rebuild-db.sh")
 fi
 
+# Priority 6: memory file drift (context-layer staleness detection)
+# Compare checksums in MEMORY.md against actual files — catches post-compression divergence
+drifted_files=""
+drifted_count=0
+if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
+    while IFS= read -r line; do
+        file_path=$(echo "$line" | sed -n 's/.*`memory\/\([^`]*\)`.*/\1/p')
+        stored_sha=$(echo "$line" | sed -n 's/.*\[sha:\([a-f0-9]*\)\].*/\1/p')
+        [ -z "$file_path" ] || [ -z "$stored_sha" ] && continue
+        full_path="$TRELLIS/memory/$file_path"
+        [ -f "$full_path" ] || continue
+        actual_sha=$(sha256sum "$full_path" | cut -c1-8)
+        if [ "$actual_sha" != "$stored_sha" ]; then
+            drifted_files="${drifted_files}${file_path} "
+            drifted_count=$((drifted_count + 1))
+        fi
+    done < "$TRELLIS/memory/MEMORY.md"
+fi
+if [ "$drifted_count" -gt 0 ]; then
+    adjustments+=("[set_point:checksum_drift, prov:environment] $drifted_count file(s) changed since MEMORY.md checksums: ${drifted_files}— re-read before citing")
+fi
+
 echo "ADJUSTMENTS:"
 if [ ${#adjustments[@]} -eq 0 ]; then
     echo "  None — system nominal"

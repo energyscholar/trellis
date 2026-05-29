@@ -266,6 +266,11 @@ MANIFEST
         bash "$TRELLIS/scripts/assemble-directives.sh" --write 2>/dev/null || true
     fi
 
+    # Auto-rebuild DB if memory files changed (self-healing staleness detection)
+    if [ -x "$TRELLIS/scripts/rebuild-db.sh" ]; then
+        bash "$TRELLIS/scripts/rebuild-db.sh" --if-stale 2>/dev/null || true
+    fi
+
     # Commit if git available
     if command -v git &>/dev/null && git -C "$TRELLIS" rev-parse --git-dir &>/dev/null; then
         git -C "$TRELLIS" add -A

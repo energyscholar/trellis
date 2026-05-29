@@ -174,9 +174,12 @@ fi
 drift="0.00"
 echo "  drift:         $drift  [OK]"
 
-# SQLite acceleration layer
+# SQLite acceleration layer (auto-rebuild if stale)
 db_enabled=$(get_config "enabled" "true")
 db_path="$TRELLIS/$(get_config "path" "trellis.db")"
+if [ "$db_enabled" = "true" ] && [ -x "$TRELLIS/scripts/rebuild-db.sh" ]; then
+    bash "$TRELLIS/scripts/rebuild-db.sh" --if-stale 2>/dev/null || true
+fi
 if [ "$db_enabled" = "true" ]; then
     if [ -f "$db_path" ] && command -v sqlite3 &>/dev/null; then
         table_count=$(sqlite3 "$db_path" "SELECT count(*) FROM sqlite_master WHERE type='table';" 2>/dev/null || echo 0)
