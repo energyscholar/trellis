@@ -7,6 +7,7 @@ table to compute cross-axis catalysis and governance resilience.
 <!-- M (Memory):    correction, save, compress, staleness-caught -->
 <!-- S (Structure): plan, follow, transition, drift-flag, drift-resolved -->
 <!-- E (Ethics):    l0, l1, l2, l3, l4, l5, storm, divergence -->
+<!-- Source annotations: (e)=environment, (s)=system-generated, unmarked=human -->
 
 | Session | Date | Domain | Memory | Structure | Ethics |
 |---------|------|--------|--------|-----------|--------|

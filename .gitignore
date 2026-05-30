@@ -26,3 +26,7 @@ memory/
 corrections.md
 !/template/memory/
 !/template/memory/corrections.md
+!/template/profiles/
+!/template/profiles/*/
+!/template/profiles/*/memory/
+!/template/profiles/*/memory/*

@@ -121,8 +121,9 @@ the user must add it manually.
 - [ ] `~/.trellis/config.yaml` exists
 - [ ] `~/.trellis/memory/MEMORY.md` exists and has identity filled in
 - [ ] `~/.trellis/memory/session-log.md` exists (event log for ACS governance check)
-- [ ] `~/.trellis/memory/corrections.md` has 4 starter corrections
-- [ ] `~/.trellis/memory/training-primer.md` exists (5 guided deduction questions)
+- [ ] `~/.trellis/memory/corrections.md` has 6 universal corrections
+- [ ] `~/.trellis/memory/` contains pre-trained governance knowledge (14 feedback, 3 insight, 7 skill, 2 reference files)
+- [ ] `~/.trellis/profiles/blank/` exists (optional: for training from scratch)
 - [ ] `~/.trellis/directives.md` exists and contains plugin sections + ACS section
 - [ ] All scripts in `~/.trellis/scripts/` are executable (including `acs-check.sh`)
 - [ ] Activation block present in platform config file
