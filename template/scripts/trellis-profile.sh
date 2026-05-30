@@ -272,6 +272,14 @@ testing:
 SYSDEFAULTS
     fi
 
+    # Migrate protocol.md: ensure Tier 0 crash recovery exists
+    local proto="$TRELLIS/memory/protocol.md"
+    if [ -f "$proto" ] && ! grep -q 'Tier 0' "$proto" 2>/dev/null; then
+        sed -i '/^## 10\. Crash Recovery/a\
+\
+**Tier 0 -- Session recovery:** `.session-active` exists but no structural damage. Read `.session-events` for partial data. Write a session-log row with available events, annotated `(crash)`. Remove `.session-active` and `.session-events`. Resume normally.' "$proto"
+    fi
+
     # Reassemble directives
     if [ -x "$TRELLIS/scripts/assemble-directives.sh" ]; then
         bash "$TRELLIS/scripts/assemble-directives.sh" --write 2>/dev/null || true
