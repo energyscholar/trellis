@@ -13,6 +13,7 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 
 ### Session Start
 
+0. **Session lifecycle (FIRST ACTION — before reading any files):** Check if `.session-active` exists. If yes: previous session crashed — read `.session-events` if present, write a crash-recovered row to `memory/session-log.md` (append existing events with `(crash)` annotation, use `—` for axes with no events), remove both files. Then: create `.session-active`. Create `.session-events` with header: `S{N} {date} domain:unknown` (N = last session-log row number + 1, or 1 if empty).
 1. Read `memory/MEMORY.md` (auto-loaded)
 2. **Identity check (first-session gate):** If identity fields are empty (session 0), this is a new user. STOP here — ask for their name and what they're working on BEFORE running any technical checks. Do not infer identity from the system username, file paths, environment variables, or any existing config — this profile may have been installed by someone else. Use an open-ended question, not pre-filled options. Only after identity is set: proceed to step 3.
 3. Read `memory/corrections.md` -- check every correction
@@ -25,6 +26,19 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 9. **Staleness check:** Before citing any memory not updated in >90 days, verify it's still current.
 10. **Post-compression recovery:** If this session began from a compression boundary (context was summarized), compare checksums in the MEMORY.md File Map against actual files. Re-read any file whose checksum mismatches — your in-context understanding may be stale. Priority: corrections.md first, then any feedback files referenced in the compressed summary.
 
+### Mid-Session Event Logging
+
+As governance events occur during the session, append one line per event to `.session-events`:
+- `M:` Memory — correction, save, compress, staleness-caught
+- `S:` Structure — plan, follow, transition, drift-flag, drift-resolved
+- `E:` Ethics — l0-l5, storm, divergence (**only if config `testing.log_dn_events` is true**)
+
+Format: `{axis}: {event}[({detail})]`. Example: `S: transition(profile-load:ClientA)`. Update the domain in the header line once session context is clear.
+
+### Session Closure
+
+On first session with a new profile, mention once that saying "shutdown" or "done for now" helps save session data properly. In subsequent sessions, only remind if the previous session was crash-recovered. Maximum one mention per session. Keep it natural — one sentence, not a lecture.
+
 ### Session End
 
 1. Update current state in MEMORY.md
@@ -32,9 +46,9 @@ You have a persistent memory directory at `memory/`. Its contents persist across
 3. Correction violation sweep: review session for violations, update dates
 4. Run integrity checks (verify file paths, correction count, orphans)
 5. Update health metrics
-6. **Log session events:** Append one row to `memory/session-log.md` — classify which events fired per axis this session (Memory/Structure/Ethics columns). Record structural facts only, not judgments about quality. Annotate events with source: `(e)` for environment-sourced (health-check findings, checksum failures, auto-detected staleness), `(s)` for system-generated (auto-expiry, compression trigger). Unannotated events default to human. Source follows the decider, not who ran the command.
+6. **Log session events:** Compile `.session-events` into one row in `memory/session-log.md`. Aggregate events per axis, comma-separated. Annotate sources: `(e)` environment, `(s)` system, unannotated = human. Remove `.session-events` after compilation.
 7. Run `scripts/memory-sync.sh` to commit memory files
-8. Remove `.session-active` flag
+8. Remove `.session-active` flag (AFTER step 7 — this is the clean-exit signal)
 9. If new memory files created: verify no PII or credentials
 
 ### Saving Memories
