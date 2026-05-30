@@ -140,3 +140,8 @@ update:
 maintenance:
   max_per_session: 2             # Max maintenance actions per session
   tutorials: true                # Show methodology tutorials as PTL items
+
+# --- Testing ---
+# Controls for test/development profiles. Off by default for production use.
+testing:
+  log_dn_events: false           # Log DN escalation events in .session-events (ethics axis)

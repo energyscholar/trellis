@@ -261,6 +261,17 @@ MANIFEST
 
     set_current_profile "$name"
 
+    # Migrate system-level config sections (may be missing from older profiles)
+    if ! grep -q '^testing:' "$TRELLIS/config.yaml" 2>/dev/null; then
+        cat >> "$TRELLIS/config.yaml" <<'SYSDEFAULTS'
+
+# --- Testing ---
+# Controls for test/development profiles. Off by default for production use.
+testing:
+  log_dn_events: false           # Log DN escalation events in .session-events (ethics axis)
+SYSDEFAULTS
+    fi
+
     # Reassemble directives
     if [ -x "$TRELLIS/scripts/assemble-directives.sh" ]; then
         bash "$TRELLIS/scripts/assemble-directives.sh" --write 2>/dev/null || true

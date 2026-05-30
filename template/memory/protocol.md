@@ -125,6 +125,8 @@ Compute at session end. Store in MEMORY.md Health Metrics.
 
 ## 10. Crash Recovery (Tiered)
 
+**Tier 0 -- Session recovery:** `.session-active` exists but no structural damage. Read `.session-events` for partial data. Write a session-log row with available events, annotated `(crash)`. Remove `.session-active` and `.session-events`. Resume normally.
+
 **Tier 1 -- Auto-repair:** Count mismatch -> recalculate. Broken ref -> remove + flag. Stale metric -> recompute. If fixed -> resume.
 
 **Tier 2 -- Git revert:** If `.recovering` exists -> Tier 3. Else: create `.recovering`, revert memory/ to most recent sync commit, preserve new corrections from diff, remove `.recovering`, resume.
