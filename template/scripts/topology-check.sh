@@ -50,6 +50,7 @@ echo "Memory:      ACTIVE (built-in)"
 
 axes=1
 inactive=()
+unassembled=()
 
 for plugin in "${plugins[@]}"; do
     plugin_dir="$TRELLIS/plugins/$plugin"
@@ -68,7 +69,23 @@ for plugin in "${plugins[@]}"; do
     fi
 
     axis=$(grep -E '^\s*axis:' "$manifest" 2>/dev/null | head -1 | sed 's/.*axis:[[:space:]]*//' | tr -d '\r')
-    echo "$plugin: ACTIVE ($axis)"
+
+    # Verify plugin directives are actually assembled into directives.md
+    section_header=$(grep -E '^\s*directives_section:' "$manifest" 2>/dev/null | head -1 | sed 's/.*directives_section:[[:space:]]*//; s/^"//; s/"$//' | tr -d '\r')
+    assembled="yes"
+    if [ -n "$section_header" ] && [ -f "$TRELLIS/directives.md" ]; then
+        next_line=$(awk -v header="$section_header" '$0 == header { getline; print; exit }' "$TRELLIS/directives.md")
+        if echo "$next_line" | grep -q '^(populated when'; then
+            assembled="no"
+        fi
+    fi
+
+    if [ "$assembled" = "yes" ]; then
+        echo "$plugin: ACTIVE ($axis, assembled)"
+    else
+        echo "$plugin: ACTIVE ($axis, NOT ASSEMBLED) [WARN]"
+        unassembled+=("$plugin")
+    fi
     axes=$((axes + 1))
 done
 
@@ -83,4 +100,9 @@ else
         echo "Inactive: ${inactive[*]}"
     fi
     exit 1
+fi
+
+if [ "${#unassembled[@]}" -gt 0 ]; then
+    echo "Warning: ${#unassembled[@]} plugin(s) configured but not assembled into directives.md"
+    echo "Run: scripts/assemble-directives.sh --write"
 fi

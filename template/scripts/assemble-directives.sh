@@ -82,15 +82,16 @@ for plugin in "${plugins[@]}"; do
         continue
     fi
 
-    fragment=$(cat "$directives_path")
+    fragment_file=$(mktemp)
+    cat "$directives_path" > "$fragment_file"
 
     # Replace the section header + placeholder line with section header + fragment
-    # The placeholder pattern is: ## Section Header\n(populated when...)
-    section_escaped=$(echo "$section_header" | sed 's/[#]/\\#/g')
-    output=$(echo "$output" | awk -v header="$section_header" -v content="$fragment" '
+    # Uses temp file instead of awk -v to avoid BSD AWK multiline variable bug
+    output=$(echo "$output" | awk -v header="$section_header" -v fragfile="$fragment_file" '
         $0 == header {
             print header
-            print content
+            while ((getline line < fragfile) > 0) print line
+            close(fragfile)
             getline
             if ($0 ~ /^\(populated when/) next
             else print
@@ -98,6 +99,7 @@ for plugin in "${plugins[@]}"; do
         }
         {print}
     ')
+    rm -f "$fragment_file"
 done
 
 # Write or print

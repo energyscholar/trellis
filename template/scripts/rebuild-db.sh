@@ -42,7 +42,7 @@ if [ "${1:-}" = "--if-stale" ]; then
     echo "DB stale (memory files changed). Rebuilding..."
 fi
 
-cleanup() { rm -f "$DB_NEW"; }
+cleanup() { rm -f "$DB_NEW" "${DB_NEW}-shm" "${DB_NEW}-wal"; }
 restore_backup() {
     echo "ERROR: Verification failed. Restoring backup..." >&2
     rm -f "$DB_NEW"
@@ -149,12 +149,26 @@ if [ "$table_count" -lt 15 ]; then
     restore_backup
 fi
 
-# Step 7: Atomic swap
+# Step 7: Checkpoint WAL and clean sidecars before atomic swap
+sqlite3 "$DB_NEW" "PRAGMA wal_checkpoint(TRUNCATE);" 2>/dev/null || true
+sqlite3 "$DB_NEW" "PRAGMA journal_mode=DELETE;" 2>/dev/null || true
+rm -f "${DB_NEW}-shm" "${DB_NEW}-wal"
+
 trap - EXIT
 mv "$DB_NEW" "$DB"
+rm -f "${DB}-shm" "${DB}-wal"
+
+# Step 8: Verify final DB after swap (not the temp — the actual artifact)
+final_tables=$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'memory_fts%';" 2>/dev/null || echo "0")
+final_integrity=$(sqlite3 "$DB" "PRAGMA integrity_check;" 2>/dev/null || echo "FAIL")
+if [ "$final_integrity" != "ok" ] || [ "$final_tables" -lt 15 ]; then
+    echo "ERROR: Final DB verification failed (tables: $final_tables, integrity: $final_integrity)" >&2
+    [ -f "$DB_BAK" ] && mv "$DB_BAK" "$DB"
+    exit 1
+fi
 rm -f "$DB_BAK"
 
-# Step 8: Stamp memory checksum so --if-stale knows this build is fresh
+# Step 9: Stamp memory checksum so --if-stale knows this build is fresh
 compute_memory_checksum > "$DB_CHECKSUM"
 
-echo "Rebuild complete: $DB (${table_count} tables, integrity OK)"
+echo "Rebuild complete: $DB (${final_tables} tables, integrity OK)"

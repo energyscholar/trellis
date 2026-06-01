@@ -67,4 +67,48 @@ if ! echo "$output" | grep -q 'Drift detection'; then
     errors=$((errors + 1))
 fi
 
+# assemble-directives.sh --write should update directives.md and remove placeholders
+bash "$TRELLIS_HOME/scripts/assemble-directives.sh" --write >/dev/null 2>&1 || {
+    echo "assemble-directives --write failed" >&2
+    errors=$((errors + 1))
+}
+if grep -q '^(populated when' "$TRELLIS_HOME/directives.md" 2>/dev/null; then
+    echo "assemble-directives --write left placeholders in directives.md" >&2
+    errors=$((errors + 1))
+fi
+
+# assembly should be idempotent — running twice produces same result
+first=$(cat "$TRELLIS_HOME/directives.md")
+bash "$TRELLIS_HOME/scripts/assemble-directives.sh" --write >/dev/null 2>&1
+second=$(cat "$TRELLIS_HOME/directives.md")
+if [ "$first" != "$second" ]; then
+    echo "assemble-directives not idempotent (second run changed output)" >&2
+    errors=$((errors + 1))
+fi
+
+# topology should report "assembled" after successful assembly
+output=$(bash "$TRELLIS_HOME/scripts/topology-check.sh" 2>/dev/null)
+if echo "$output" | grep -q 'NOT ASSEMBLED'; then
+    echo "topology reports NOT ASSEMBLED after successful assembly" >&2
+    errors=$((errors + 1))
+fi
+
+# topology should detect unassembled state
+cp "$TRELLIS_HOME/directives-base.md" "$TRELLIS_HOME/directives.md"
+output=$(bash "$TRELLIS_HOME/scripts/topology-check.sh" 2>/dev/null)
+if ! echo "$output" | grep -q 'NOT ASSEMBLED'; then
+    echo "topology failed to detect unassembled directives" >&2
+    errors=$((errors + 1))
+fi
+bash "$TRELLIS_HOME/scripts/assemble-directives.sh" --write >/dev/null 2>&1
+
+# rebuild-db.sh should not leave orphan sidecar files
+if [ -d "$TRELLIS_HOME/scripts/db" ]; then
+    bash "$TRELLIS_HOME/scripts/rebuild-db.sh" >/dev/null 2>&1 || true
+    if ls "${TRELLIS_HOME}/trellis.db.new-shm" "${TRELLIS_HOME}/trellis.db.new-wal" 2>/dev/null | grep -q .; then
+        echo "rebuild-db left orphan .new sidecar files" >&2
+        errors=$((errors + 1))
+    fi
+fi
+
 exit "$errors"
