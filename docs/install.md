@@ -11,6 +11,30 @@ activation block. Total time: under 5 minutes.
 
 ## Fresh Install Steps
 
+### 0. Check for cloud recovery
+
+Before checking the local filesystem, check if the user has an existing
+Trellis memory repo on GitHub:
+
+1. If `gh` is available and authenticated:
+   ```bash
+   GH_USER=$(gh api user --jq '.login' 2>/dev/null)
+   if gh repo view "$GH_USER/trellis-memory" &>/dev/null 2>&1; then
+       # Recovery mode
+       git clone "https://github.com/$GH_USER/trellis-memory.git" "$HOME/.trellis"
+       # Overlay current distribution scripts
+       cp -r /tmp/trellis-install/template/scripts/ "$HOME/.trellis/scripts/"
+       cp -r /tmp/trellis-install/template/plugins/ "$HOME/.trellis/plugins/"
+       chmod +x "$HOME/.trellis/scripts/"*.sh
+       # Rebuild SQLite cache
+       bash "$HOME/.trellis/scripts/rebuild-db.sh"
+       # Mark GitHub as configured (clone already set origin)
+       touch "$HOME/.trellis/.github-setup-complete"
+       # Skip to Step 4 (wire platform) — memory is already populated
+   fi
+   ```
+2. If `gh` not available: proceed with fresh install (nudge will handle setup later)
+
 ### 1. Check for existing installation
 
 Check in order: `$TRELLIS_HOME` env var, `~/.config/trellis/home` breadcrumb,
@@ -38,6 +62,11 @@ cd "$HOME/.trellis"
 git init
 git add -A
 git commit -m "Trellis initial install"
+```
+
+```bash
+# Attempt GitHub backup setup (non-fatal if gh unavailable)
+bash "$HOME/.trellis/scripts/github-setup.sh" 2>/dev/null || true
 ```
 
 If git is not available: skip git init (Tier 0 mode). Warn the user about
@@ -129,6 +158,7 @@ the user must add it manually.
 - [ ] Activation block present in platform config file
 - [ ] `scripts/health-check.sh` reports all OK (ACS line shows "need 10+ sessions")
 - [ ] `scripts/topology-check.sh` reports 3/3
+- [ ] `.github-setup-complete` exists (or nudge directive visible in `directives.md`)
 
 ## Codex Notes
 

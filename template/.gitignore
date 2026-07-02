@@ -6,3 +6,6 @@
 # Session state (ephemeral)
 .session-active
 .recovering
+
+# Marker files (machine-local state)
+.github-setup-complete

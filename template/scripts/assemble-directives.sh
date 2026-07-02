@@ -102,6 +102,14 @@ for plugin in "${plugins[@]}"; do
     rm -f "$fragment_file"
 done
 
+# GitHub backup nudge (appears until setup complete)
+if [ ! -f "$TRELLIS/.github-setup-complete" ]; then
+    nudge_file="$TRELLIS/scripts/fragments/github-nudge.md"
+    if [ -f "$nudge_file" ]; then
+        output="$output"$'\n\n'"$(cat "$nudge_file")"
+    fi
+fi
+
 # Write or print
 if [ "${1:-}" = "--write" ]; then
     echo "$output" > "$write_to"
