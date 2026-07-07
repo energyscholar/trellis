@@ -112,6 +112,14 @@ if $QUICK; then
     exit 0
 fi
 
+# Respect auto_push config (update script checks this; we must too)
+AUTO_PUSH=$(grep -E '^\s*auto_push:' "$TRELLIS/config.yaml" 2>/dev/null \
+    | head -1 | sed 's/.*auto_push:[[:space:]]*//' | tr -d '\r' || true)
+if [ "$AUTO_PUSH" = "false" ]; then
+    echo "Remote configured but auto_push is false. Skipping push."
+    exit 0
+fi
+
 # Handle git lock contention
 if [ -f .git/index.lock ]; then
     lock_age=$(( $(date +%s) - $(stat -c %Y .git/index.lock 2>/dev/null || stat -f %m .git/index.lock) ))
