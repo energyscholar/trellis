@@ -109,8 +109,14 @@ if $VERIFY_ONLY; then
     exit $( [ "$WARNINGS" -gt 0 ] && echo 1 || echo 0 )
 fi
 
-# Stage and commit (explicit paths — avoid committing stray credentials)
-git add memory/ config.yaml profiles/ plugins/ scripts/ .file-hashes .db-memory-checksum .gitignore 2>/dev/null || true
+# Stage and commit (explicit paths — avoid committing stray credentials).
+# One path at a time: git add stages NOTHING at all if any single pathspec in
+# the list is missing, which would silently turn every sync into a no-op.
+for p in memory config.yaml profiles plugins scripts RECOVERY.md BOOTSTRAP.md .file-hashes .db-memory-checksum .gitignore; do
+    if [ -e "$TRELLIS/$p" ]; then
+        git add "$p" 2>/dev/null || true
+    fi
+done
 hash_sha256 "$TRELLIS"/memory/*.md 2>/dev/null > "$HASHES"
 git add "$HASHES"
 
