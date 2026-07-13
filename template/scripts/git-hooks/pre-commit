@@ -1,0 +1,41 @@
+#!/bin/bash
+# pre-commit — block DE-INDEXING of memories (the deletion wall).
+# De-indexing = removing a top-level memory/*.md from the read path, whether by
+# deletion OR by moving it into a subdir (memory/archive/, ...). The DESTINATION
+# is the tell, not the deletion. Also protects memory/recall.log (append-only).
+#
+# Threat model: guards against FORGOTTEN or ACCIDENTAL damage — the quiet motion
+# where a memory file leaves the read path and nothing ever notices. A
+# determined actor can override (ALLOW_MEMORY_DELETE=1) or bypass (--no-verify);
+# both are deliberate acts and both leave a trace.
+set -euo pipefail
+TOP='^memory/[^/]+\.md$'
+LOG="health/deletion-attempts.log"; mkdir -p health 2>/dev/null || true
+ts() { date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo now; }
+
+if [ "${ALLOW_MEMORY_DELETE:-}" = "1" ]; then
+    echo "$(ts)  OVERRIDE  reason=${MEMORY_DELETE_REASON:-<none>}" >> "$LOG"; exit 0
+fi
+
+blocked=0
+while IFS=$'\t' read -r status src dst; do
+    case "$status" in
+        D*) case "$src" in memory/*) echo "BLOCKED: deletes $src"; blocked=1;; esac ;;
+        R*) case "$src" in memory/*)
+                printf '%s' "$dst" | grep -qE "$TOP" || { echo "BLOCKED: de-indexes $src -> $dst (leaves read path)"; blocked=1; } ;;
+            esac ;;
+    esac
+done < <(git diff --cached --name-status -M)
+
+if git rev-parse HEAD >/dev/null 2>&1 && git diff --cached --name-only | grep -qx 'memory/recall.log'; then
+    old=$(git show HEAD:memory/recall.log 2>/dev/null | wc -l); old=${old:-0}
+    new=$(git show :memory/recall.log 2>/dev/null | wc -l); new=${new:-0}
+    [ "$new" -lt "$old" ] && { echo "BLOCKED: recall.log shrank $old->$new (append-only)"; blocked=1; }
+fi
+
+if [ "$blocked" = 1 ]; then
+    echo "$(ts)  BLOCKED" >> "$LOG"
+    echo "--- Set ALLOW_MEMORY_DELETE=1 (and MEMORY_DELETE_REASON) to override deliberately." >&2
+    exit 1
+fi
+exit 0
