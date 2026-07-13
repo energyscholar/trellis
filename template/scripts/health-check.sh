@@ -29,6 +29,21 @@ get_config() {
 compression_threshold=$(get_config "memory_index_cap" "200")
 review_interval=$(get_config "review_interval" "10")
 
+# Every non-OK check prints one imperative next action. A health report that
+# says "unhealthy" without saying what to DO is a ritual, not a mechanism.
+do_next() {
+    echo "  DO-NEXT: $1"
+}
+
+# Portable SHA-256 (macOS ships shasum; most Linux ships both)
+hash_sha256_file() {
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" 2>/dev/null | awk '{print $1}'
+    fi
+}
+
 warnings=0
 errors=0
 checks_ok=0
@@ -58,6 +73,7 @@ check_file() {
         checks_ok=$((checks_ok + 1))
     else
         echo "  [FAIL] $label MISSING"
+        do_next "Restore $label from your private memory repo (scripts/restore.sh) or re-copy it from the template."
         errors=$((errors + 1))
     fi
 }
@@ -81,6 +97,7 @@ if $scripts_ok; then
     checks_ok=$((checks_ok + 1))
 else
     echo "  [WARN] some scripts not executable"
+    do_next "Run: chmod +x $TRELLIS/scripts/*.sh"
     warnings=$((warnings + 1))
 fi
 
@@ -94,11 +111,13 @@ if [ "$tier" -ge 1 ]; then
         checks_ok=$((checks_ok + 1))
     else
         echo "  [WARN] uncommitted changes"
+        do_next "Run scripts/memory-sync.sh to commit and back up memory changes."
         warnings=$((warnings + 1))
     fi
 
     if [ "$tier" -lt 2 ]; then
         echo "  [WARN] no remote configured -- memories are local only"
+        do_next "Run scripts/github-setup.sh to create a private GitHub backup repo."
         warnings=$((warnings + 1))
     else
         echo "  [OK] remote configured"
@@ -106,7 +125,73 @@ if [ "$tier" -ge 1 ]; then
     fi
 else
     echo "  [WARN] git not available (Tier 0 mode)"
+    do_next "Install git so memories are versioned and recoverable (Tier 1+)."
     warnings=$((warnings + 1))
+fi
+
+# --- Deletion wall (memory de-indexing guard) ---
+# health-check runs at session start on every platform, so it is the re-arm
+# catalyst: core.hooksPath is local git config and does not survive a clone.
+# Arming is idempotent.
+if [ "$tier" -ge 1 ]; then
+    if [ -f "$TRELLIS/scripts/git-hooks/pre-commit" ]; then
+        git -C "$TRELLIS" config core.hooksPath scripts/git-hooks 2>/dev/null || true
+        chmod +x "$TRELLIS/scripts/git-hooks/"* 2>/dev/null || true
+        if [ "$(git -C "$TRELLIS" config core.hooksPath 2>/dev/null)" = "scripts/git-hooks" ]; then
+            echo "  [OK] wall: armed"
+            checks_ok=$((checks_ok + 1))
+        else
+            echo "  [FAIL] wall: NOT armed (core.hooksPath could not be set)"
+            do_next "Run scripts/install-hooks.sh and check git works in $TRELLIS."
+            errors=$((errors + 1))
+        fi
+    else
+        echo "  [WARN] wall: hook missing (scripts/git-hooks/pre-commit)"
+        do_next "Run scripts/trellis-update.sh to get the deletion wall, then scripts/install-hooks.sh."
+        warnings=$((warnings + 1))
+    fi
+else
+    echo "  [WARN] wall: not armed (no git — Tier 0)"
+    do_next "Install git and run scripts/install-hooks.sh to protect memories from silent deletion."
+    warnings=$((warnings + 1))
+fi
+
+# --- Identity check (config ai_name vs active profile) ---
+ai_name=$(grep -E '^[[:space:]]*ai_name:' "$config" 2>/dev/null | head -1 \
+    | sed 's/.*ai_name:[[:space:]]*//; s/[[:space:]]*#.*//' | tr -d '\r"'"'" || true)
+active_profile=$(grep -E '^[[:space:]]*active_profile:' "$config" 2>/dev/null | head -1 \
+    | sed 's/.*active_profile:[[:space:]]*//; s/[[:space:]]*#.*//' | tr -d '\r"'"'" || true)
+if [ -n "$ai_name" ] && [ -n "$active_profile" ] && [ "$ai_name" != "$active_profile" ]; then
+    echo "  [WARN] identity: ai_name '$ai_name' != active profile '$active_profile'"
+    do_next "Set identity.ai_name in config.yaml to the name this instance actually uses (per-instance profiles need per-profile names, not one global ai_name)."
+    warnings=$((warnings + 1))
+else
+    echo "  [OK] identity: ai_name/profile consistent"
+    checks_ok=$((checks_ok + 1))
+fi
+
+# --- Dignity Net canon pin ---
+dn_pin_version=$(grep -E '^[[:space:]]*dn_version:' "$config" 2>/dev/null | head -1 \
+    | sed 's/.*dn_version:[[:space:]]*//; s/[[:space:]]*#.*//' | tr -d '\r"'"'" || true)
+dn_pin_checksum=$(grep -E '^[[:space:]]*dn_checksum:' "$config" 2>/dev/null | head -1 \
+    | sed 's/.*dn_checksum:[[:space:]]*//; s/[[:space:]]*#.*//' | tr -d '\r"'"'" || true)
+dn_file="$TRELLIS/plugins/dignity-net/dignity-net.md"
+if [ -n "$dn_pin_checksum" ]; then
+    if [ ! -f "$dn_file" ]; then
+        echo "  [WARN] dignity-net: plugin file missing"
+        do_next "Run scripts/trellis-update.sh to restore the canonical Dignity Net plugin."
+        warnings=$((warnings + 1))
+    else
+        dn_actual=$(hash_sha256_file "$dn_file")
+        if [ "$dn_actual" = "$dn_pin_checksum" ]; then
+            echo "  [OK] dignity-net: matches pinned canon v${dn_pin_version:-?}"
+            checks_ok=$((checks_ok + 1))
+        else
+            echo "  [WARN] dignity-net: DRIFTED from pinned canon v${dn_pin_version:-?}"
+            do_next "Run scripts/trellis-update.sh to restore canonical Dignity Net (or re-pin dn_version/dn_checksum in config.yaml if a new canon was deliberately designated)."
+            warnings=$((warnings + 1))
+        fi
+    fi
 fi
 
 echo ""
@@ -122,6 +207,7 @@ fi
 pressure=$(echo "scale=2; $memory_count / $compression_threshold" | bc 2>/dev/null || echo "0.00")
 if [ "$(echo "$pressure > 0.9" | bc 2>/dev/null)" = "1" ]; then
     echo "  pressure:      $pressure  [HIGH]"
+    do_next "Compress or archive low-value memories per memory/protocol.md (compression stages)."
     warnings=$((warnings + 1))
 else
     echo "  pressure:      $pressure  [OK]"
@@ -149,6 +235,7 @@ if [ "$indexed" -gt 0 ] 2>/dev/null; then
 fi
 if [ "$(echo "$frag_score > 1.0" | bc 2>/dev/null)" = "1" ]; then
     echo "  fragmentation: $frag_score  [HIGH]"
+    do_next "Add the unindexed memory files to the file map in memory/MEMORY.md — unindexed memories are unrecallable."
     warnings=$((warnings + 1))
 else
     echo "  fragmentation: $frag_score  [OK]"
@@ -165,6 +252,7 @@ if [ "$tier" -ge 1 ]; then
 fi
 if [ "$(echo "$volatility > 1.0" | bc 2>/dev/null)" = "1" ]; then
     echo "  volatility:    $volatility  [HIGH]"
+    do_next "Review the last commit's memory churn and record a session-log entry explaining it."
     warnings=$((warnings + 1))
 else
     echo "  volatility:    $volatility  [OK]"
@@ -189,13 +277,16 @@ if [ "$db_enabled" = "true" ]; then
             checks_ok=$((checks_ok + 1))
         else
             echo "  sqlite:        ON ($table_count tables, integrity: $integrity)  [WARN]"
+            do_next "Run scripts/rebuild-db.sh to rebuild the DB from flat files (flat files are the source of truth)."
             warnings=$((warnings + 1))
         fi
     elif [ ! -f "$db_path" ]; then
         echo "  sqlite:        ON (not built yet — run rebuild-db.sh)  [WARN]"
+        do_next "Run scripts/rebuild-db.sh to build the SQLite acceleration layer."
         warnings=$((warnings + 1))
     elif ! command -v sqlite3 &>/dev/null; then
         echo "  sqlite:        ON (sqlite3 not installed)  [WARN]"
+        do_next "Install sqlite3, or set database.enabled: false in config.yaml."
         warnings=$((warnings + 1))
     fi
 else

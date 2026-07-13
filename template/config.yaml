@@ -50,6 +50,11 @@ plugins:
     - dignity-net
     - triad
   plugin_dir: plugins            # Directory within TRELLIS_HOME for plugin manifests
+  # Dignity Net canon pin. health-check.sh verifies the installed
+  # plugins/dignity-net/dignity-net.md against these values and warns on drift.
+  # Updated by the distribution whenever a new DN version is designated canon.
+  dn_version: "1.2"
+  dn_checksum: "ece22f385c203cb3d626dec4b05e43af23a8572cd4b799001ab5e6798e49c53f"
 
 # --- Topology Monitor ---
 # Counts active governance axes. Warns if below threshold.
