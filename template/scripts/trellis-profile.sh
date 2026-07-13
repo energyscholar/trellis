@@ -22,6 +22,13 @@ fi
 PROFILES_DIR="$TRELLIS/profiles"
 mkdir -p "$PROFILES_DIR"
 
+# Portable in-place sed (bare `sed -i` is GNU-only; BSD sed requires a suffix)
+sed_inplace() {
+    local expr="$1" file="$2" tmp
+    tmp=$(mktemp)
+    sed "$expr" "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 usage() {
     cat <<'USAGE'
 trellis-profile.sh — Memory profile management
@@ -53,12 +60,14 @@ get_current_profile() {
 set_current_profile() {
     local name="$1"
     local config="$TRELLIS/config.yaml"
-    if grep -qE '^\s*active_profile:' "$config" 2>/dev/null; then
-        sed -i "s|^\(\s*active_profile:\).*|\1 \"$name\"|" "$config"
+    if grep -qE '^[[:space:]]*active_profile:' "$config" 2>/dev/null; then
+        sed_inplace "s|^\([[:space:]]*active_profile:\).*|\1 \"$name\"|" "$config"
     else
-        # Add after the platform section
+        # Add after the platform section (backslash-newline `a\` form works in
+        # both GNU and BSD sed; the one-line GNU form does not)
         if grep -q '^platform:' "$config"; then
-            sed -i "/^platform:/a\\  active_profile: \"$name\"" "$config"
+            sed_inplace "/^platform:/a\\
+  active_profile: \"$name\"" "$config"
         else
             echo "  active_profile: \"$name\"" >> "$config"
         fi
@@ -275,7 +284,7 @@ SYSDEFAULTS
     # Migrate protocol.md: ensure Tier 0 crash recovery exists
     local proto="$TRELLIS/memory/protocol.md"
     if [ -f "$proto" ] && ! grep -q 'Tier 0' "$proto" 2>/dev/null; then
-        sed -i '/^## 10\. Crash Recovery/a\
+        sed_inplace '/^## 10\. Crash Recovery/a\
 \
 **Tier 0 -- Session recovery:** `.session-active` exists but no structural damage. Read `.session-events` for partial data. Write a session-log row with available events, annotated `(crash)`. Remove `.session-active` and `.session-events`. Resume normally.' "$proto"
     fi
@@ -290,10 +299,14 @@ SYSDEFAULTS
         bash "$TRELLIS/scripts/rebuild-db.sh" --if-stale 2>/dev/null || true
     fi
 
-    # Commit if git available
+    # Commit if git available. A profile switch legitimately removes top-level
+    # memory/*.md files (they were auto-saved to profiles/_autosave first), so
+    # this deliberate, preserved swap passes the deletion wall with a logged
+    # override instead of being blocked.
     if command -v git &>/dev/null && git -C "$TRELLIS" rev-parse --git-dir &>/dev/null; then
         git -C "$TRELLIS" add -A
-        git -C "$TRELLIS" commit -m "Profile loaded: $name" 2>/dev/null || true
+        ALLOW_MEMORY_DELETE=1 MEMORY_DELETE_REASON="profile switch to '$name' (previous state saved in profiles/_autosave)" \
+            git -C "$TRELLIS" commit -m "Profile loaded: $name" 2>/dev/null || true
     fi
 
     local sessions
@@ -423,7 +436,7 @@ cmd_pin() {
     fi
     local manifest="$PROFILES_DIR/$name/profile.yaml"
     if grep -q '^pinned:' "$manifest" 2>/dev/null; then
-        sed -i 's/^pinned:.*/pinned: true/' "$manifest"
+        sed_inplace 's/^pinned:.*/pinned: true/' "$manifest"
     else
         echo "pinned: true" >> "$manifest"
     fi
@@ -441,7 +454,7 @@ cmd_unpin() {
         echo "Profile not found: $name" >&2; exit 1
     fi
     local manifest="$PROFILES_DIR/$name/profile.yaml"
-    sed -i '/^pinned:/d' "$manifest"
+    sed_inplace '/^pinned:/d' "$manifest"
     if command -v git &>/dev/null && git -C "$TRELLIS" rev-parse --git-dir &>/dev/null; then
         git -C "$TRELLIS" add -A
         git -C "$TRELLIS" commit -m "Profile unpinned: $name" 2>/dev/null || true
@@ -519,7 +532,7 @@ cmd_import() {
     cp "$source/config.yaml" "$target/config.yaml"
     if [ -f "$source/profile.yaml" ]; then
         cp "$source/profile.yaml" "$target/profile.yaml"
-        sed -i "s|^name:.*|name: \"$name\"|" "$target/profile.yaml"
+        sed_inplace "s|^name:.*|name: \"$name\"|" "$target/profile.yaml"
     else
         cat > "$target/profile.yaml" <<MANIFEST
 name: "$name"

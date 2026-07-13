@@ -58,6 +58,26 @@ rm -f "$TRELLIS/.session-active"
 HASHES="$TRELLIS/.file-hashes"
 WARNINGS=0
 
+# --- Portable SHA-256 (macOS ships shasum; most Linux ships both) ---
+# A missing hash tool must FAIL LOUD: an empty hash file makes drift detection
+# silently report "no changes" forever — the silent-success failure class.
+hash_sha256() {
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$@"
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$@"
+    else
+        echo "ERROR: no SHA-256 tool found (need shasum or sha256sum). Sync aborted." >&2
+        exit 1
+    fi
+}
+
+# Portable file mtime (epoch). GNU long form first: on GNU, `stat -f` means
+# "filesystem status" and would succeed with the WRONG output.
+file_mtime_epoch() {
+    stat --format='%Y' "$1" 2>/dev/null || stat -f '%m' "$1" 2>/dev/null
+}
+
 if ! $QUICK; then
     # Health warnings
     if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
@@ -73,7 +93,7 @@ fi
 # Checksum drift detection
 if [ -f "$HASHES" ]; then
     HASHES_NEW=$(mktemp)
-    md5sum "$TRELLIS"/memory/*.md 2>/dev/null > "$HASHES_NEW" || true
+    hash_sha256 "$TRELLIS"/memory/*.md 2>/dev/null > "$HASHES_NEW"
     DRIFTED=$(diff "$HASHES" "$HASHES_NEW" 2>/dev/null | grep "^>" | awk '{print $NF}' || true)
     rm -f "$HASHES_NEW"
     if [ -n "$DRIFTED" ] && ! $QUICK; then
@@ -89,9 +109,9 @@ if $VERIFY_ONLY; then
     exit $( [ "$WARNINGS" -gt 0 ] && echo 1 || echo 0 )
 fi
 
-# Stage and commit
-git add -A
-md5sum "$TRELLIS"/memory/*.md 2>/dev/null > "$HASHES" || true
+# Stage and commit (explicit paths — avoid committing stray credentials)
+git add memory/ config.yaml profiles/ plugins/ scripts/ .file-hashes .db-memory-checksum .gitignore 2>/dev/null || true
+hash_sha256 "$TRELLIS"/memory/*.md 2>/dev/null > "$HASHES"
 git add "$HASHES"
 
 if git diff --cached --quiet; then
@@ -122,7 +142,7 @@ fi
 
 # Handle git lock contention
 if [ -f .git/index.lock ]; then
-    lock_age=$(( $(date +%s) - $(stat -c %Y .git/index.lock 2>/dev/null || stat -f %m .git/index.lock) ))
+    lock_age=$(( $(date +%s) - $(file_mtime_epoch .git/index.lock) ))
     if [ "$lock_age" -gt 300 ]; then
         rm -f .git/index.lock
     else
@@ -160,8 +180,12 @@ if [[ "$remote_url" == *github.com* ]] && command -v gh &>/dev/null; then
     fi
 fi
 
-# Pull before push (multi-machine sync)
-git pull --rebase origin main 2>/dev/null || true
+# Pull before push (multi-machine sync). Never assume a branch name —
+# installs exist on both main and master.
+current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -n "$current_branch" ] && [ "$current_branch" != "HEAD" ]; then
+    git pull --rebase origin "$current_branch" 2>/dev/null || true
+fi
 
 # Push with retry
 pushed=false

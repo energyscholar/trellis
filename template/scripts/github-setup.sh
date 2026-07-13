@@ -54,6 +54,13 @@ done
 
 config="$TRELLIS/config.yaml"
 
+# Portable in-place sed (bare `sed -i` is GNU-only; BSD sed requires a suffix)
+sed_inplace() {
+    local expr="$1" file="$2" tmp
+    tmp=$(mktemp)
+    sed "$expr" "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 # --- Early exit if already configured ---
 if [ -f "$TRELLIS/.github-setup-complete" ] && ! $RECOVER; then
     # Verify the remote is actually set
@@ -168,22 +175,26 @@ if ! $repo_exists; then
 fi
 
 # --- Update config.yaml ---
-sed -i "s|^\(\s*tier:\s*\).*|\1 2|" "$config"
-sed -i "s|^\(\s*remote_url:\s*\).*|\1 \"$REMOTE_URL\"|" "$config"
-sed -i "s|^\(\s*auto_push:\s*\).*|\1 true|" "$config"
-sed -i "s|^\(\s*auto_pull:\s*\).*|\1 true|" "$config"
+sed_inplace "s|^\([[:space:]]*tier:[[:space:]]*\).*|\1 2|" "$config"
+sed_inplace "s|^\([[:space:]]*remote_url:[[:space:]]*\).*|\1 \"$REMOTE_URL\"|" "$config"
+sed_inplace "s|^\([[:space:]]*auto_push:[[:space:]]*\).*|\1 true|" "$config"
+sed_inplace "s|^\([[:space:]]*auto_pull:[[:space:]]*\).*|\1 true|" "$config"
 
 # --- Initial commit + push ---
 git add -A
 git commit -m "Trellis: GitHub backup configured" 2>/dev/null || true
 
+# Never assume a branch name — installs exist on both main and master.
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+[ "$BRANCH" = "HEAD" ] && BRANCH="main"
+
 if $repo_exists; then
     # Fetch and merge before pushing (multi-machine or recovery)
-    git fetch origin main 2>/dev/null || true
-    git pull --rebase origin main 2>/dev/null || true
+    git fetch origin "$BRANCH" 2>/dev/null || true
+    git pull --rebase origin "$BRANCH" 2>/dev/null || true
 fi
 
-if git push -u origin main 2>/dev/null; then
+if git push -u origin "$BRANCH" 2>/dev/null; then
     # --- Create marker ---
     touch "$TRELLIS/.github-setup-complete"
     echo ""

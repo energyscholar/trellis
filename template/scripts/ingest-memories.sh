@@ -43,12 +43,35 @@ sql_escape() {
 
 extract_frontmatter_field() {
     local file="$1" field="$2"
-    sed -n '/^---$/,/^---$/p' "$file" | grep "^${field}:" | head -1 | sed "s/^${field}:[[:space:]]*//"
+    local val
+    # A memory saved with CRLF line endings has a frontmatter fence of "---\r",
+    # which never matches /^---$/. The block parsed EMPTY, the file was SKIPPED
+    # with no error, and the memory became invisible to every retrieval path.
+    # ONE INVISIBLE BYTE = ONE UNRECALLABLE MEMORY. Strip \r before parsing.
+    val=$(tr -d '\r' < "$file" | sed -n '/^---$/,/^---$/p' | grep "^${field}:" | head -1 | sed "s/^${field}:[[:space:]]*//")
+    if [ -z "$val" ]; then
+        # Check nested under metadata:
+        val=$(tr -d '\r' < "$file" | sed -n '/^---$/,/^---$/p' | grep "^[[:space:]]\+${field}:" | head -1 | sed "s/^[[:space:]]*${field}:[[:space:]]*//")
+    fi
+    printf '%s' "$val"
 }
 
 extract_body() {
     local file="$1"
-    awk 'BEGIN{n=0} /^---$/{n++; next} n>=2{print}' "$file"
+    tr -d '\r' < "$file" | awk 'BEGIN{n=0} /^---$/{n++; next} n>=2{print}'
+}
+
+# Portable file mtime as 'YYYY-MM-DD HH:MM:SS'.
+# GNU/Linux: stat --format=%Y, date --date=@<epoch>. BSD/macOS: stat -f %m,
+# date -r <epoch>. GNU is tried first: on GNU, `stat -f` means "filesystem
+# status" and would SUCCEED with the wrong output (mount point, not epoch).
+file_mtime_datetime() {
+    local file="$1" epoch
+    epoch=$(stat --format='%Y' "$file" 2>/dev/null || stat -f '%m' "$file" 2>/dev/null) || true
+    case "$epoch" in ''|*[!0-9]*) return 0 ;; esac
+    date --date="@$epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null \
+        || date -r "$epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null \
+        || true
 }
 
 get_created_at() {
@@ -57,7 +80,7 @@ get_created_at() {
     local oldest
     oldest=$(git log --date=format:'%Y-%m-%d %H:%M:%S' --format='%ad' -- "$file" 2>/dev/null | tail -1) || true
     if [ -n "$oldest" ]; then echo "$oldest"; return; fi
-    date -d "@$(stat -c '%Y' "$file" 2>/dev/null || stat -f '%m' "$file")" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || true
+    file_mtime_datetime "$file"
 }
 
 get_updated_at() {
@@ -65,12 +88,14 @@ get_updated_at() {
     local latest
     latest=$(git log -1 --date=format:'%Y-%m-%d %H:%M:%S' --format='%ad' -- "$file" 2>/dev/null) || true
     if [ -n "$latest" ]; then echo "$latest"; return; fi
-    date -d "@$(stat -c '%Y' "$file" 2>/dev/null || stat -f '%m' "$file")" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || true
+    file_mtime_datetime "$file"
 }
 
 extract_body_field() {
     local body="$1" marker="$2"
-    echo "$body" | grep -oP "(?<=\*\*${marker}:\*\*\s).*" | head -1
+    # Portable equivalent of a PCRE lookbehind (grep -P is GNU-only; on macOS
+    # the extraction would return SILENTLY EMPTY).
+    echo "$body" | sed -n "s/^.*\*\*${marker}:\*\*[[:space:]]*//p" | head -1
 }
 
 extract_first_paragraph() {
@@ -125,7 +150,7 @@ process_file() {
 -- $filename
 INSERT OR REPLACE INTO feedback(slug, rule, why, how_to_apply, content, domain, source_file, created_at, updated_at)
 VALUES ('$(sql_escape "$slug")', '${rule}', '${why}', '${how}', '${body_escaped}',
-    '${fm_domain:-general}', '$(sql_escape "$filename")', ${ca_sql}, ${ua_sql});
+    '$(sql_escape "${fm_domain:-general}")', '$(sql_escape "$filename")', ${ca_sql}, ${ua_sql});
 
 EOSQL
             ;;
@@ -135,7 +160,7 @@ EOSQL
 INSERT OR REPLACE INTO projects(slug, name, description, why, how_to_apply, content, domain, source_file, created_at, updated_at)
 VALUES ('$(sql_escape "$slug")', '$(sql_escape "$fm_name")', '$(sql_escape "$fm_desc")',
     '${why}', '${how}', '${body_escaped}',
-    '${fm_domain:-general}', '$(sql_escape "$filename")', ${ca_sql}, ${ua_sql});
+    '$(sql_escape "${fm_domain:-general}")', '$(sql_escape "$filename")', ${ca_sql}, ${ua_sql});
 
 EOSQL
             ;;
@@ -153,7 +178,7 @@ EOSQL
 -- $filename
 INSERT OR REPLACE INTO user_profile(slug, attribute, value, context, source_file, created_at, updated_at)
 VALUES ('$(sql_escape "$slug")', '$(sql_escape "$fm_name")', '${body_escaped}',
-    '$(sql_escape "$fm_desc")', ${ca_sql}, ${ua_sql});
+    '$(sql_escape "$fm_desc")', '$(sql_escape "$filename")', ${ca_sql}, ${ua_sql});
 
 EOSQL
             ;;
@@ -201,13 +226,21 @@ if [ -z "$SINGLE_FILE" ] && { [ -z "$TYPE" ] || [ -z "$GLOB_PATTERN" ] || [ -z "
     exit 1
 fi
 
-# Acquire flock
-exec 9>"$LOCKFILE"
-if ! flock -n 9; then
-    echo "ERROR: Another ingest is running" >&2
-    exit 1
+# Acquire lock (flock where available; mkdir fallback — macOS has no flock)
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCKFILE"
+    if ! flock -n 9; then
+        echo "ERROR: Another ingest is running" >&2
+        exit 1
+    fi
+    trap 'rm -f "$LOCKFILE"' EXIT
+else
+    if ! mkdir "${LOCKFILE}.d" 2>/dev/null; then
+        echo "ERROR: Another ingest is running (${LOCKFILE}.d exists)" >&2
+        exit 1
+    fi
+    trap 'rmdir "${LOCKFILE}.d" 2>/dev/null || true' EXIT
 fi
-trap 'rm -f "$LOCKFILE"' EXIT
 
 cd "$TRELLIS"
 
@@ -215,8 +248,14 @@ if [ -n "$SINGLE_FILE" ]; then
     [ ! -f "$SINGLE_FILE" ] && echo "ERROR: $SINGLE_FILE not found" >&2 && exit 1
     process_file "$SINGLE_FILE"
 else
-    output_path="${TRELLIS}/${OUTPUT}"
-    mkdir -p "$(dirname "$output_path")"
+    # An absolute --output path must be used as-is. Unconditionally prepending
+    # TRELLIS produced a bogus path — the script then printed "Processed N
+    # files" and exited 0 WHILE WRITING NOTHING.
+    case "$OUTPUT" in
+        /*) output_path="$OUTPUT" ;;
+        *)  output_path="${TRELLIS}/${OUTPUT}" ;;
+    esac
+    mkdir -p "$(dirname "$output_path")" || { echo "ERROR: cannot create $(dirname "$output_path")" >&2; exit 1; }
     {
         echo "-- Generated by ingest-memories.sh"
         echo "-- Type: $TYPE | Pattern: $GLOB_PATTERN"

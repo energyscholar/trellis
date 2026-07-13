@@ -26,9 +26,21 @@ DB_BAK="${DB}.bak"
 DB_DIR="${SCRIPT_DIR}/db"
 DB_CHECKSUM="${TRELLIS}/.db-memory-checksum"
 
+# --- Portable SHA-256 (macOS ships shasum; most Linux ships both) ---
+hash_sha256() {
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$@"
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$@"
+    else
+        echo "ERROR: no SHA-256 tool found (need shasum or sha256sum)" >&2
+        return 1
+    fi
+}
+
 # --- Staleness check ---
 compute_memory_checksum() {
-    md5sum "$TRELLIS"/memory/*.md 2>/dev/null | sort | md5sum | awk '{print $1}'
+    hash_sha256 "$TRELLIS"/memory/*.md 2>/dev/null | sort | hash_sha256 | awk '{print $1}'
 }
 
 if [ "${1:-}" = "--if-stale" ]; then
@@ -57,6 +69,39 @@ restore_backup() {
 trap cleanup EXIT
 sqlite3 "$DB_NEW" < "${DB_DIR}/schema.sql"
 sqlite3 "$DB_NEW" < "${DB_DIR}/views.sql"
+
+#-----------------------------------------------------------------------------
+# SNAPSHOT FRESHNESS GATE.
+#
+# If scripts/db/data-*.sql are generated once and never regenerated, every
+# rebuild loads a frozen snapshot and any memory written after that date NEVER
+# reaches the DB — silently. Memories stranded this way stay invisible to
+# every DB-backed retrieval path while the flat files look perfectly healthy.
+#
+# A rebuild must NEVER run against a snapshot older than the memory files.
+# Regenerate first. This makes that failure structurally impossible.
+#-----------------------------------------------------------------------------
+_TR_INGEST="${SCRIPT_DIR}/ingest-memories.sh"
+if [ -x "$_TR_INGEST" ]; then
+    _TR_STALE=0
+    for _m in "$TRELLIS"/memory/*.md; do
+        [ -f "$_m" ] || continue
+        for _d in "${SCRIPT_DIR}"/db/data-*.sql; do
+            [ -f "$_d" ] || continue
+            [ "$_m" -nt "$_d" ] && { _TR_STALE=1; break 2; }
+        done
+    done
+    if [ "$_TR_STALE" -eq 1 ]; then
+        echo "rebuild-db: memory is newer than the data snapshot. Regenerating from markdown."
+        # NOTE: regenerate ONLY where markdown is the superset. If rows exist
+        # only in SQL, extract them to markdown FIRST — or this DELETES them.
+        "$_TR_INGEST" --type feedback  --glob "memory/feedback-*.md"  --output scripts/db/data-feedback.sql   >/dev/null 2>&1 || true
+        "$_TR_INGEST" --type project   --glob "memory/project-*.md"   --output scripts/db/data-projects.sql   >/dev/null 2>&1 || true
+        "$_TR_INGEST" --type reference --glob "memory/reference-*.md" --output scripts/db/data-references.sql >/dev/null 2>&1 || true
+        "$_TR_INGEST" --type user      --glob "memory/user-*.md"      --output scripts/db/data-user.sql       >/dev/null 2>&1 || true
+        echo "rebuild-db: snapshot regenerated from markdown."
+    fi
+fi
 
 # Step 3: Load data (if data scripts exist)
 for f in "${SCRIPT_DIR}"/db/data-*.sql; do
@@ -104,7 +149,8 @@ for f in memory/feedback-*.md memory/project-*.md memory/reference-*.md memory/u
         user-*)      tbl="user_profile"; slug="${base#user-}"; slug="${slug%.md}" ;;
         *) continue ;;
     esac
-    sqlite3 "$DB_NEW" "UPDATE memory_confidence SET last_reinforced = '${git_date}' WHERE source_table = '${tbl}' AND source_id = (SELECT id FROM \"${tbl}\" WHERE slug = '${slug}');" 2>/dev/null || true
+    escaped_slug=$(echo "$slug" | sed "s/'/''/g")
+    sqlite3 "$DB_NEW" "UPDATE memory_confidence SET last_reinforced = '${git_date}' WHERE source_table = '${tbl}' AND source_id = (SELECT id FROM \"${tbl}\" WHERE slug = '${escaped_slug}');" 2>/dev/null || true
 done
 
 # Step 5b: Session-summary reinforcement for non-file-backed tables
