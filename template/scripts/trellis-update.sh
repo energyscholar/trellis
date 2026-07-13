@@ -38,8 +38,15 @@ REPO_URL=$(grep -E '^\s*repo_url:' "$TRELLIS/config.yaml" 2>/dev/null \
     | head -1 | sed 's/.*repo_url:[[:space:]]*//' | tr -d '\r"'"'" || true)
 : "${REPO_URL:=https://github.com/energyscholar/trellis.git}"
 
+# Portable in-place sed (bare `sed -i` is GNU-only; BSD sed requires a suffix)
+sed_inplace() {
+    local expr="$1" file="$2" tmp
+    tmp=$(mktemp)
+    sed "$expr" "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 TEMP="/tmp/trellis-update-$$"
-cleanup() { rm -rf "$TEMP"; }
+cleanup() { rm -rf "$TEMP" "$TRELLIS/scripts.new" "$TRELLIS/plugins.new"; }
 trap cleanup EXIT
 
 echo "Fetching updates from $REPO_URL..." >&2
@@ -79,12 +86,31 @@ if git rev-parse --git-dir &>/dev/null; then
     git add -A && git commit -m "Pre-update snapshot" 2>/dev/null || true
 fi
 
-rm -rf "$TRELLIS/scripts" && cp -r "$TEMP/template/scripts" "$TRELLIS/scripts"
-rm -rf "$TRELLIS/plugins" && cp -r "$TEMP/template/plugins" "$TRELLIS/plugins"
+# STAGE-AND-SWAP. Never `rm -rf scripts/` before the copy: a crash in that
+# window leaves an install with NO SCRIPTS AT ALL, and any armed git hooks
+# (the memory deletion wall) vanish mid-flight. Stage the new trees fully,
+# then swap with mv — the install always has a complete scripts/ directory.
+rm -rf "$TRELLIS/scripts.new" "$TRELLIS/plugins.new"
+cp -r "$TEMP/template/scripts" "$TRELLIS/scripts.new"
+cp -r "$TEMP/template/plugins" "$TRELLIS/plugins.new"
+chmod +x "$TRELLIS/scripts.new/"*.sh
+chmod +x "$TRELLIS/scripts.new/git-hooks/"* 2>/dev/null || true
+
+rm -rf "$TRELLIS/scripts.old" "$TRELLIS/plugins.old"
+mv "$TRELLIS/scripts" "$TRELLIS/scripts.old"
+mv "$TRELLIS/scripts.new" "$TRELLIS/scripts"
+mv "$TRELLIS/plugins" "$TRELLIS/plugins.old"
+mv "$TRELLIS/plugins.new" "$TRELLIS/plugins"
+rm -rf "$TRELLIS/scripts.old" "$TRELLIS/plugins.old"
+
 cp "$TEMP/template/directives.md" "$TRELLIS/directives-base.md"
 [ -f "$TEMP/template/.gitignore" ] && cp "$TEMP/template/.gitignore" "$TRELLIS/.gitignore"
+[ -f "$TEMP/template/RECOVERY.md" ] && cp "$TEMP/template/RECOVERY.md" "$TRELLIS/RECOVERY.md"
+[ -f "$TEMP/template/BOOTSTRAP.md" ] && cp "$TEMP/template/BOOTSTRAP.md" "$TRELLIS/BOOTSTRAP.md"
 
-chmod +x "$TRELLIS/scripts/"*.sh
+# Stamp the new version into the user's config. Without this the version gate
+# never advances and every future run re-applies the same update.
+sed_inplace "s|^version:.*|version: ${NEW_VERSION}|" "$TRELLIS/config.yaml"
 
 if [ -x "$TRELLIS/scripts/assemble-directives.sh" ]; then
     bash "$TRELLIS/scripts/assemble-directives.sh" --write 2>/dev/null || true
@@ -100,7 +126,15 @@ if git rev-parse --git-dir &>/dev/null; then
     fi
 fi
 
+# FINAL STEP: re-arm the deletion wall. core.hooksPath is local git config and
+# the freshly swapped scripts/ must be re-activated after every update.
+if [ -x "$TRELLIS/scripts/install-hooks.sh" ]; then
+    bash "$TRELLIS/scripts/install-hooks.sh" || echo "Warning: install-hooks.sh failed — wall not armed." >&2
+fi
+
 echo "Updated: v${OLD_VERSION} → v${NEW_VERSION}" >&2
-echo "  scripts/    — replaced" >&2
+echo "  scripts/    — replaced (staged swap)" >&2
 echo "  plugins/    — replaced" >&2
 echo "  directives  — reassembled" >&2
+echo "  config      — version stamped: ${NEW_VERSION}" >&2
+echo "  wall        — install-hooks.sh run" >&2
