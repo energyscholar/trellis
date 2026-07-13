@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0] — 2026-07-13
+
+### Added
+- Memory deletion wall (`scripts/git-hooks/pre-commit` + `scripts/install-hooks.sh`): commits that delete a top-level `memory/*.md`, or move one out of the read path (e.g. into `memory/archive/`), are blocked. In-place renames allowed. Deliberate override via `ALLOW_MEMORY_DELETE=1` is permitted and logged to `health/deletion-attempts.log`.
+- Recovery UX: `RECOVERY.md` (one-page restore guide, lives in the install so it travels in the private memory repo), `BOOTSTRAP.md` (browser-only bootstrap prompt), `scripts/restore.sh` (one-command restore: recover → update → arm wall → wire → health-check).
+- `health-check.sh`: re-arms the wall idempotently on every run and reports "wall: armed"; identity check (config `ai_name` vs active profile); Dignity Net canon pin check (`plugins.dn_version` + `plugins.dn_checksum` in config); one imperative DO-NEXT line per non-OK check.
+- `rebuild-db.sh` snapshot freshness gate: never rebuild from a `data-*.sql` snapshot older than the memory files — regenerate from markdown first (a frozen snapshot silently strands every memory written after it).
+- `tests/test-wall.sh` (wall behavior) and `tests/test-portability.sh` (macOS/BSD lint: no `grep -P`, `md5sum`, `stat -c`, `date -d`, bare `sed -i`, `realpath` in `template/scripts/`).
+
+### Changed
+- `trellis-update.sh`: stage-and-swap replacement of `scripts/` and `plugins/` (no window with scripts deleted; a crash mid-update can no longer strip an install or its wall); stamps the new version into the user's `config.yaml` (the version gate otherwise never advances); runs `install-hooks.sh` as the final step.
+- `ingest-memories.sh`: CRLF-tolerant frontmatter parsing (a `\r` on the fence made memories silently unrecallable); absolute `--output` paths honored (was silently writing nothing); portable mtime/date handling; `flock` fallback for macOS; SQL-escaping fixes.
+- `memory-sync.sh`: portable SHA-256 hashing that fails loud when no hash tool exists; explicit per-path staging (no `git add -A`, and no all-or-nothing pathspec list); pulls the current branch instead of assuming `main`.
+- `github-setup.sh`, `trellis-profile.sh`: portable in-place sed; no hardcoded branch names; profile load passes the wall via logged override (the swap is deliberate and auto-saved first).
+- Version bumped to 0.5.0.
+
 ## [0.4.0] — 2026-05-27
 
 ### Added
