@@ -145,13 +145,14 @@ else
 
     # Session count from session-log.md
     if [ -f "$TRELLIS/memory/session-log.md" ]; then
-        session_count=$(grep -c '^| S[0-9]' "$TRELLIS/memory/session-log.md" 2>/dev/null || echo 0)
+        # Optional S prefix — pre-v0.5 logs use bare numeric ids.
+        session_count=$(grep -cE '^\| S?[0-9]' "$TRELLIS/memory/session-log.md" 2>/dev/null || echo 0)
     fi
 
     # Provenance from session-log.md annotations
     if [ -f "$TRELLIS/memory/session-log.md" ] && [ "$session_count" -gt 0 ]; then
         prov_data=$(awk -F'|' '
-            /^\| S[0-9]/ {
+            /^\| S?[0-9]/ {
                 for (i = 5; i <= 7; i++) {
                     nf = split($i, parts, /,/)
                     for (j = 1; j <= nf; j++) {

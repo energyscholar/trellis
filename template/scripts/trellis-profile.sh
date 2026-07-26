@@ -78,7 +78,8 @@ get_session_count() {
     local dir="$1"
     local log="$dir/memory/session-log.md"
     if [ -f "$log" ]; then
-        awk -F'|' '/^\| S[0-9]/ { n++ } END { print n+0 }' "$log"
+        # Optional S prefix — pre-v0.5 logs use bare numeric ids.
+        awk -F'|' '/^\| S?[0-9]/ { n++ } END { print n+0 }' "$log"
     else
         echo "0"
     fi
