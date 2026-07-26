@@ -6,9 +6,13 @@
 - ACS and every other reader of `session-log.md` now accept the pre-v0.5 bare-numeric session id (`| 17 |`) alongside the current `| S22 |` form. The strict `^\| S[0-9]` matcher in `acs-check.sh`, `proprioceptive-check.sh`, `trellis-profile.sh`, and `stress-test-compare.sh` silently excluded an installation's entire pre-update history, reporting "insufficient data (have 0)" against a log with 18 valid rows. (#8)
 - `tests/test-integrity.sh` no longer passes when it cannot run its own checks. The plugin and manifest checks piped `python3` output into `for` with stderr discarded, so a missing PyYAML produced an empty list, an unexecuted loop body, and a green result meaning "skipped". Extraction failure is now a test failure, and a repo with manifests that checked none of them fails too. (#6)
 - `tests/run-all.sh` and `CONTRIBUTING.md` now offer install routes that work on externally-managed Python (PEP 668 — Debian 12+, Ubuntu 23.04+, Homebrew), where the previously documented `pip install -r requirements-test.txt` is refused outright. (#7)
+- `acs-check.sh` no longer aborts on macOS. Line 403 interpolated an unbraced `$first_session` immediately followed by an en-dash; bash 3.2 folds the multi-byte character into the variable name, so `set -u` killed the script with `first_session…: unbound variable` after printing two lines of header. Every macOS install with enough sessions to reach the report was affected — it went unseen only because the sole known macOS install short-circuited earlier on the #8 bug, which means fixing #8 is what would have walked it into this crash.
+- `CONTRIBUTING.md` no longer instructs contributors to run `tests/test-hashes.sh --reset`; no such script exists in the repo.
 
 ### Added
 - `tests/test-acs-session-formats.sh`: regression coverage for numeric-only, `S`-prefixed-only, and mixed session logs, asserting session count, first/last identifier, and provenance parsing across `acs-check.sh` and `proprioceptive-check.sh`.
+- CI (`.github/workflows/tests.yml`): the suite on ubuntu and macOS, a job asserting the suite fails *loudly* without PyYAML rather than skipping (#4's last criterion), and a standalone portability lint. The macOS `acs-check.sh` abort above was caught by this workflow's first run.
+- `tests/test-portability.sh` now flags an unbraced `$var` followed by a byte outside printable ASCII — the bash 3.2 unbound-variable trap, which is invisible on inspection and invisible on Linux.
 
 ## [0.5.0] — 2026-07-13
 

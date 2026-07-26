@@ -400,7 +400,11 @@ bar() {
 
 echo "Trellis ACS Report"
 echo "=================="
-echo "Sessions: $window_size ($first_session–$last_session)  Window: $first_date — $last_date"
+# Braces are required, not cosmetic: bash 3.2 (macOS) folds the following
+# multi-byte en-dash into the variable name, so an unbraced $first_session
+# here dies with "unbound variable" under set -u on every macOS install that
+# has enough sessions to reach this line.
+echo "Sessions: $window_size (${first_session}–${last_session})  Window: $first_date — $last_date"
 echo ""
 echo "Per-Axis Activity:"
 printf "  Memory:    %s  %.2f\n" "$(bar "$m_activity")" "$m_activity"
