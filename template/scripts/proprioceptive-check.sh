@@ -65,6 +65,16 @@ session_count=0
 storage_status="OK"
 acs_line=""
 
+calculate_flat_file_pressure() {
+    local mem_lines=0
+    if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
+        mem_lines=$(wc -l < "$TRELLIS/memory/MEMORY.md" 2>/dev/null || echo 0)
+    fi
+    awk -v l="$mem_lines" -v c="$memory_index_cap" 'BEGIN {
+        if (c+0 > 0) printf "%.2f", l/c; else print "0.00"
+    }'
+}
+
 if $use_db; then
     # --- DB mode ---
 
@@ -75,6 +85,10 @@ if $use_db; then
     if [ -n "$health_row" ]; then
         pressure=$(echo "$health_row" | cut -d'|' -f1)
         drift=$(echo "$health_row" | cut -d'|' -f2)
+    else
+        # An initialized but empty health database must not mask current
+        # flat-file pressure as a healthy zero.
+        pressure=$(calculate_flat_file_pressure)
     fi
 
     # Hot corrections (top 5 by heat)
@@ -114,10 +128,7 @@ else
     # --- Flat-file fallback ---
 
     # Pressure: MEMORY.md line count / cap
-    if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
-        mem_lines=$(wc -l < "$TRELLIS/memory/MEMORY.md" 2>/dev/null || echo 0)
-        pressure=$(awk -v l="$mem_lines" -v c="$memory_index_cap" 'BEGIN { printf "%.2f", l/c }')
-    fi
+    pressure=$(calculate_flat_file_pressure)
 
     # Drift: not computable from flat files without session review interval tracking
     drift="0.00"

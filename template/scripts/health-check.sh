@@ -26,7 +26,8 @@ get_config() {
     grep -E "^\s*${key}:" "$config" 2>/dev/null | head -1 | sed "s/.*${key}:[[:space:]]*//; s/[[:space:]]*#.*//" | tr -d '\r' || echo "$default"
 }
 
-compression_threshold=$(get_config "memory_index_cap" "200")
+memory_index_cap=$(get_config "memory_index_cap" "200")
+pressure_warn=$(get_config "pressure_warn" "0.9")
 review_interval=$(get_config "review_interval" "10")
 
 # Every non-OK check prints one imperative next action. A health report that
@@ -199,13 +200,15 @@ echo ""
 # --- Metrics ---
 echo "Metrics:"
 
-# Pressure: memory file count / threshold
-memory_count=0
-if [ -d "$TRELLIS/memory" ]; then
-    memory_count=$(find "$TRELLIS/memory" -name '*.md' -not -name 'protocol.md' -not -name 'corrections.md' | wc -l)
+# Pressure: MEMORY.md line count / configured cap
+memory_lines=0
+if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
+    memory_lines=$(wc -l < "$TRELLIS/memory/MEMORY.md" 2>/dev/null || echo 0)
 fi
-pressure=$(echo "scale=2; $memory_count / $compression_threshold" | bc 2>/dev/null || echo "0.00")
-if [ "$(echo "$pressure > 0.9" | bc 2>/dev/null)" = "1" ]; then
+pressure=$(awk -v l="$memory_lines" -v c="$memory_index_cap" 'BEGIN {
+    if (c+0 > 0) printf "%.2f", l/c; else print "0.00"
+}')
+if [ "$(awk -v p="$pressure" -v w="$pressure_warn" 'BEGIN { print (p+0 >= w+0) ? 1 : 0 }')" = "1" ]; then
     echo "  pressure:      $pressure  [HIGH]"
     do_next "Compress or archive low-value memories per memory/protocol.md (compression stages)."
     warnings=$((warnings + 1))
