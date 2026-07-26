@@ -37,6 +37,20 @@ lint 'date[[:space:]]+(-[A-Za-z]+[[:space:]]+)*-d[[:space:]"]' 'date -d (GNU-onl
 lint 'sed[[:space:]]+(-[A-Za-z]+[[:space:]]+)*-i([[:space:]]|$|'"'"')' 'bare sed -i (BSD sed needs a suffix; use sed_inplace)'
 lint '\brealpath\b' 'realpath (missing on older macOS; use cd/pwd -P)'
 
+# An unbraced $var followed immediately by a multi-byte character: bash 3.2
+# (macOS) folds those bytes into the variable name, so `set -u` aborts the
+# script. Invisible on inspection and invisible on Linux — it cost a live
+# macOS ACS report, which died on "$first_session–$last_session".
+# LC_ALL=C makes [^ -~] mean "byte outside printable ASCII"; grep -P is
+# banned by this same lint, so the byte-class form is the portable one.
+noascii_hits=$(LC_ALL=C grep -RnE '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$SCRIPTS" --include='*.sh' 2>/dev/null \
+    | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' || true)
+if [ -n "$noascii_hits" ]; then
+    echo "PORTABILITY: unbraced \$var followed by a multi-byte character (bash 3.2 unbound-variable; use \${var}) found:" >&2
+    echo "$noascii_hits" >&2
+    errors=$((errors + 1))
+fi
+
 if [ "$errors" -eq 0 ]; then
     echo "portability lint: clean"
 fi
