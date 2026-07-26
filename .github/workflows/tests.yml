@@ -34,6 +34,13 @@ jobs:
       - name: Run test suite
         run: bash tests/run-all.sh
 
+      - name: Show failing test output
+        if: failure()
+        run: |
+          bash -x tests/test-acs-session-formats.sh 2>&1 | tail -60 || true
+          echo "--- bash version ---"
+          bash --version | head -1
+
   # Issue #4: the suite must fail LOUDLY without PyYAML, never pass by
   # skipping. This job asserts the failure mode, so it expects non-zero
   # exits — a green run here means the guards work.
