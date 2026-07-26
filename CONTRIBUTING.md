@@ -53,7 +53,8 @@ Before submitting a PR, run the test suite:
 bash tests/run-all.sh
 ```
 
-All tests must pass. If you've intentionally changed template files, run `bash tests/test-hashes.sh --reset` to update the baseline.
+All tests must pass. There is no hash baseline to refresh after changing
+template files — just re-run the suite.
 
 ## Design principles
 
