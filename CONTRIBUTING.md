@@ -25,6 +25,15 @@ Trellis is deliberately minimal. Every file and rule traces back to a specific, 
 
 ## Running tests
 
+The Trellis runtime remains dependency-free beyond bash and git. The test
+suite additionally requires Python 3 and PyYAML for validating YAML files.
+
+Install the test dependency:
+
+```bash
+python3 -m pip install -r requirements-test.txt
+```
+
 Before submitting a PR, run the test suite:
 
 ```bash
