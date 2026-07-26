@@ -37,7 +37,7 @@ jobs:
       - name: Show failing test output
         if: failure()
         run: |
-          bash -x tests/test-acs-session-formats.sh 2>&1 | tail -60 || true
+          bash tests/test-acs-session-formats.sh 2>&1 | grep -E '^(FAIL:|test-acs)' || true
           echo "--- bash version ---"
           bash --version | head -1
 
