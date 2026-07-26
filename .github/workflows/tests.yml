@@ -1,0 +1,123 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The suite as a contributor runs it, on both supported platforms.
+  # macOS is not redundant: template/scripts must stay portable to BSD
+  # userland and bash 3.2, which is what test-portability.sh exists to
+  # protect and what a Linux-only matrix would quietly stop checking.
+  suite:
+    name: suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install test dependencies
+        run: python3 -m pip install -r requirements-test.txt
+
+      - name: Run test suite
+        run: bash tests/run-all.sh
+
+  # Issue #4: the suite must fail LOUDLY without PyYAML, never pass by
+  # skipping. This job asserts the failure mode, so it expects non-zero
+  # exits — a green run here means the guards work.
+  no-pyyaml:
+    name: no-pyyaml (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Confirm PyYAML is absent
+        run: |
+          if python3 -c 'import yaml' 2>/dev/null; then
+            echo "PyYAML is present on this runner; this job needs it absent." >&2
+            exit 1
+          fi
+          echo "PyYAML absent, as required."
+
+      - name: run-all.sh must refuse to run, with an actionable message
+        run: |
+          set +e
+          out=$(bash tests/run-all.sh 2>&1)
+          status=$?
+          set -e
+          echo "$out"
+
+          if [ "$status" -eq 0 ]; then
+            echo "::error::run-all.sh exited 0 without PyYAML; it must refuse to run." >&2
+            exit 1
+          fi
+
+          # The message must name the dependency, not misreport it as a
+          # config.yaml parse failure (the original bug in #4).
+          echo "$out" | grep -q 'Missing test dependency: PyYAML' || {
+            echo "::error::run-all.sh did not name the missing dependency." >&2
+            exit 1
+          }
+          # Note the `if !` form rather than `grep && { ... }`: Actions runs
+          # these with `set -e`, where a non-matching grep in an && list
+          # fails the step.
+          if echo "$out" | grep -qi 'parse failed'; then
+            echo "::error::run-all.sh blamed config.yaml for a missing dependency." >&2
+            exit 1
+          fi
+
+          # PEP 668 systems must be given a route that works there (#7).
+          echo "$out" | grep -q 'python3-yaml' || {
+            echo "::error::no PEP 668 fallback offered in the preflight message." >&2
+            exit 1
+          }
+
+      - name: test-integrity.sh must fail rather than silently skip
+        run: |
+          set +e
+          out=$(bash tests/test-integrity.sh 2>&1)
+          status=$?
+          set -e
+          echo "$out"
+
+          # The whole point of #6: an extraction it cannot run is a
+          # failure, not a pass with an empty loop body.
+          if [ "$status" -eq 0 ]; then
+            echo "::error::test-integrity.sh passed without PyYAML; it checked nothing." >&2
+            exit 1
+          fi
+          echo "$out" | grep -q 'YAML extraction failed' || {
+            echo "::error::test-integrity.sh failed without explaining why." >&2
+            exit 1
+          }
+
+  # test-portability.sh lints template/scripts for non-POSIX and
+  # GNU-only tooling. Running it alone, fast, on every push makes the
+  # most common review-blocker visible before the full matrix finishes.
+  portability:
+    name: portability lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint template/scripts for non-portable tooling
+        run: bash tests/test-portability.sh
