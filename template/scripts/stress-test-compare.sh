@@ -46,7 +46,8 @@ for profile_dir in "$PROFILES_DIR"/*/; do
     # Count sessions from session-log
     sessions=0
     if [ -f "$profile_dir/memory/session-log.md" ]; then
-        sessions=$(grep -cE '^\| S[0-9]' "$profile_dir/memory/session-log.md" 2>/dev/null) || sessions=0
+        # Optional S prefix — pre-v0.5 logs use bare numeric ids.
+        sessions=$(grep -cE '^\| S?[0-9]' "$profile_dir/memory/session-log.md" 2>/dev/null) || sessions=0
     fi
 
     # Run ACS check against profile directory (non-destructive)

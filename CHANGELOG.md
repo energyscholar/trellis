@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- ACS and every other reader of `session-log.md` now accept the pre-v0.5 bare-numeric session id (`| 17 |`) alongside the current `| S22 |` form. The strict `^\| S[0-9]` matcher in `acs-check.sh`, `proprioceptive-check.sh`, `trellis-profile.sh`, and `stress-test-compare.sh` silently excluded an installation's entire pre-update history, reporting "insufficient data (have 0)" against a log with 18 valid rows. (#8)
+- `tests/test-integrity.sh` no longer passes when it cannot run its own checks. The plugin and manifest checks piped `python3` output into `for` with stderr discarded, so a missing PyYAML produced an empty list, an unexecuted loop body, and a green result meaning "skipped". Extraction failure is now a test failure, and a repo with manifests that checked none of them fails too. (#6)
+- `tests/run-all.sh` and `CONTRIBUTING.md` now offer install routes that work on externally-managed Python (PEP 668 — Debian 12+, Ubuntu 23.04+, Homebrew), where the previously documented `pip install -r requirements-test.txt` is refused outright. (#7)
+
+### Added
+- `tests/test-acs-session-formats.sh`: regression coverage for numeric-only, `S`-prefixed-only, and mixed session logs, asserting session count, first/last identifier, and provenance parsing across `acs-check.sh` and `proprioceptive-check.sh`.
+
 ## [0.5.0] — 2026-07-13
 
 ### Added

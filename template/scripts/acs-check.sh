@@ -42,8 +42,11 @@ if [ ! -f "$session_log" ]; then
 fi
 
 # Extract data rows (skip header, empty lines, separator lines)
+# The S prefix is optional: installations created before v0.5 wrote bare
+# numeric session ids (| 17 |). Dropping those silently discards ACS history
+# across an update, so both forms are accepted.
 session_data=$(awk -F'|' '
-    /^\| S[0-9]/ {
+    /^\| S?[0-9]/ {
         gsub(/^[ \t]+|[ \t]+$/, "", $2)  # session
         gsub(/^[ \t]+|[ \t]+$/, "", $3)  # date
         gsub(/^[ \t]+|[ \t]+$/, "", $4)  # domain

@@ -34,13 +34,27 @@ Install the test dependency:
 python3 -m pip install -r requirements-test.txt
 ```
 
+If that reports `externally-managed-environment` — PEP 668, which applies on
+Debian 12+, Ubuntu 23.04+, and Homebrew Python — use the system package or a
+virtualenv instead:
+
+```bash
+sudo apt install python3-yaml                  # Debian/Ubuntu
+
+# or, anywhere:
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-test.txt
+PATH="$PWD/.venv/bin:$PATH" bash tests/run-all.sh
+```
+
 Before submitting a PR, run the test suite:
 
 ```bash
 bash tests/run-all.sh
 ```
 
-All tests must pass. If you've intentionally changed template files, run `bash tests/test-hashes.sh --reset` to update the baseline.
+All tests must pass. There is no hash baseline to refresh after changing
+template files — just re-run the suite.
 
 ## Design principles
 
