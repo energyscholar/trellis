@@ -54,6 +54,24 @@ echo "$health_output" | grep -Eq 'pressure:[[:space:]]+0?\.45[[:space:]]+\[OK\]'
     exit 1
 }
 
+# Any memory file omitted from the File Map is fragmented and must warn.
+printf '# Orphan\n' > "$FIXTURE/memory/orphan.md"
+health_output=$(TRELLIS_HOME="$FIXTURE" bash "$FIXTURE/scripts/health-check.sh" 2>&1)
+echo "$health_output" | grep -Eq 'fragmentation:[[:space:]]+1?\.00[[:space:]]+\[HIGH\]' || {
+    echo "health-check did not warn for an unindexed memory file:" >&2
+    echo "$health_output" >&2
+    exit 1
+}
+printf '\nFile Map: orphan.md\n' >> "$FIXTURE/memory/MEMORY.md"
+health_output=$(TRELLIS_HOME="$FIXTURE" bash "$FIXTURE/scripts/health-check.sh" 2>&1)
+echo "$health_output" | grep -Eq 'fragmentation:[[:space:]]+0([.]00)?[[:space:]]+\[OK\]' || {
+    echo "health-check did not clear fragmentation after indexing the file:" >&2
+    echo "$health_output" >&2
+    exit 1
+}
+rm "$FIXTURE/memory/orphan.md"
+make_memory_lines 180
+
 # An empty health view must fall back to current flat-file pressure.
 if command -v sqlite3 >/dev/null 2>&1; then
     sqlite3 "$FIXTURE/trellis.db" \

@@ -236,7 +236,7 @@ frag_score="0.00"
 if [ "$indexed" -gt 0 ] 2>/dev/null; then
     frag_score=$(echo "scale=2; $fragmentation / $indexed" | bc 2>/dev/null || echo "0.00")
 fi
-if [ "$(echo "$frag_score > 1.0" | bc 2>/dev/null)" = "1" ]; then
+if [ "$fragmentation" -gt 0 ]; then
     echo "  fragmentation: $frag_score  [HIGH]"
     do_next "Add the unindexed memory files to the file map in memory/MEMORY.md — unindexed memories are unrecallable."
     warnings=$((warnings + 1))
