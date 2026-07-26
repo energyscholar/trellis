@@ -13,7 +13,7 @@ cp "$REPO/template/scripts/acs-check.sh" "$FIXTURE/scripts/acs-check.sh"
 chmod +x "$FIXTURE/scripts/"*.sh
 
 write_config() {
-    local cap="$1" trigger="$2" warn="$3"
+    local cap="$1" trigger="$2" warn="$3" volatility_review="${4:-0.50}"
     printf '%s\n' \
         'version: "0.5.0"' \
         'storage:' \
@@ -23,6 +23,7 @@ write_config() {
         "  compression_trigger: $trigger" \
         'health:' \
         "  pressure_warn: $warn" \
+        "  volatility_review: $volatility_review" \
         '  review_interval: 10' \
         'database:' \
         '  enabled: true' \
@@ -104,6 +105,51 @@ set -e
 echo "$sync_output" | grep -Fq 'WARNING: MEMORY.md is 12 lines (cap: 20)' || {
     echo "memory-sync warning did not use configured trigger and cap:" >&2
     echo "$sync_output" >&2
+    exit 1
+}
+
+# Volatility is the fraction of memory paths touched by the last commit, using
+# the union of paths before and after so deletions cannot produce a score >1.
+for name in a b c d; do
+    printf '# %s\n' "$name" > "$FIXTURE/memory/$name.md"
+done
+git -C "$FIXTURE" add memory
+git -C "$FIXTURE" commit -qm 'add volatility fixtures'
+
+for name in a b c; do
+    printf 'changed\n' >> "$FIXTURE/memory/$name.md"
+done
+git -C "$FIXTURE" add memory
+git -C "$FIXTURE" commit -qm 'change three memory files'
+health_output=$(TRELLIS_HOME="$FIXTURE" bash "$FIXTURE/scripts/health-check.sh" 2>&1)
+echo "$health_output" | grep -Eq 'volatility:[[:space:]]+0?\.43[[:space:]]+\[OK\]' || {
+    echo "health-check did not leave a 3-of-7 memory change below review threshold:" >&2
+    echo "$health_output" >&2
+    exit 1
+}
+
+for name in a b c d; do
+    printf 'changed again\n' >> "$FIXTURE/memory/$name.md"
+done
+git -C "$FIXTURE" add memory
+git -C "$FIXTURE" commit -qm 'change four memory files'
+health_output=$(TRELLIS_HOME="$FIXTURE" bash "$FIXTURE/scripts/health-check.sh" 2>&1)
+echo "$health_output" | grep -Eq 'volatility:[[:space:]]+0?\.57[[:space:]]+\[REVIEW\]' || {
+    echo "health-check did not flag a 4-of-7 memory change for review:" >&2
+    echo "$health_output" >&2
+    exit 1
+}
+
+rm "$FIXTURE/memory/a.md" "$FIXTURE/memory/b.md" "$FIXTURE/memory/c.md" "$FIXTURE/memory/d.md"
+printf 'deletion commit\n' >> "$FIXTURE/memory/MEMORY.md"
+printf 'deletion commit\n' >> "$FIXTURE/memory/protocol.md"
+printf 'deletion commit\n' >> "$FIXTURE/memory/corrections.md"
+git -C "$FIXTURE" add memory
+git -C "$FIXTURE" commit -qm 'delete four and change three memory files'
+health_output=$(TRELLIS_HOME="$FIXTURE" bash "$FIXTURE/scripts/health-check.sh" 2>&1)
+echo "$health_output" | grep -Eq 'volatility:[[:space:]]+1\.00[[:space:]]+\[REVIEW\]' || {
+    echo "health-check did not bound deletion-heavy volatility at 1.00:" >&2
+    echo "$health_output" >&2
     exit 1
 }
 

@@ -67,6 +67,7 @@ topology:
 # Thresholds for the health vector [p f v d]. Protocol.md defines actions.
 health:
   pressure_warn: 0.9             # memory_index lines / memory_index_cap
+  volatility_review: 0.50        # Review when one commit touches this fraction of memory files
   freshness_warn: 1.0            # Days since newest correction violation / 30
   coverage_target: 1.0           # Fraction of file-map entries that resolve (1.0 = all)
   drift_warn: 1.0                # Sessions since system review / review_interval

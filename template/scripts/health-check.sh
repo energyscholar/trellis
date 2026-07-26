@@ -28,6 +28,7 @@ get_config() {
 
 memory_index_cap=$(get_config "memory_index_cap" "200")
 pressure_warn=$(get_config "pressure_warn" "0.9")
+volatility_review=$(get_config "volatility_review" "0.50")
 review_interval=$(get_config "review_interval" "10")
 
 # Every non-OK check prints one imperative next action. A health report that
@@ -244,18 +245,26 @@ else
     echo "  fragmentation: $frag_score  [OK]"
 fi
 
-# Volatility: files changed in last commit / total
+# Volatility: memory paths changed in the last commit / memory paths present
+# either before or after it. The union denominator keeps deletions from making
+# the score exceed 1.00.
 volatility="0.00"
-if [ "$tier" -ge 1 ]; then
-    total_files=$(find "$TRELLIS/memory" -name '*.md' 2>/dev/null | wc -l)
-    if [ "$total_files" -gt 0 ]; then
-        changed=$(git -C "$TRELLIS" diff --name-only HEAD~1 -- memory/ 2>/dev/null | wc -l || echo 0)
-        volatility=$(echo "scale=2; $changed / $total_files" | bc 2>/dev/null || echo "0.00")
+changed=0
+memory_paths=0
+if [ "$tier" -ge 1 ] && git -C "$TRELLIS" rev-parse --verify HEAD~1 &>/dev/null; then
+    before_paths=$(git -C "$TRELLIS" ls-tree -r --name-only HEAD~1 -- memory/ 2>/dev/null || true)
+    after_paths=$(git -C "$TRELLIS" ls-tree -r --name-only HEAD -- memory/ 2>/dev/null || true)
+    memory_paths=$(printf '%s\n%s\n' "$before_paths" "$after_paths" \
+        | sed '/^$/d' | sort -u | wc -l | tr -d ' ')
+    changed=$(git -C "$TRELLIS" diff --name-only HEAD~1 HEAD -- memory/ 2>/dev/null \
+        | sed '/^$/d' | sort -u | wc -l | tr -d ' ')
+    if [ "$memory_paths" -gt 0 ]; then
+        volatility=$(awk -v n="$changed" -v d="$memory_paths" 'BEGIN { printf "%.2f", n/d }')
     fi
 fi
-if [ "$(echo "$volatility > 1.0" | bc 2>/dev/null)" = "1" ]; then
-    echo "  volatility:    $volatility  [HIGH]"
-    do_next "Review the last commit's memory churn and record a session-log entry explaining it."
+if [ "$(awk -v v="$volatility" -v r="$volatility_review" 'BEGIN { print (v+0 >= r+0) ? 1 : 0 }')" = "1" ]; then
+    echo "  volatility:    $volatility  [REVIEW]"
+    do_next "Review the last memory commit: it changed $changed of $memory_paths files. Confirm the breadth was intentional and record the reason in the session log."
     warnings=$((warnings + 1))
 else
     echo "  volatility:    $volatility  [OK]"
