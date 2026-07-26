@@ -37,7 +37,23 @@ jobs:
       - name: Show failing test output
         if: failure()
         run: |
-          bash tests/test-acs-session-formats.sh 2>&1 | grep -E '^(FAIL:|test-acs)' || true
+          H=$(mktemp -d)/t
+          cp -r template/ "$H/"
+          {
+            echo "| Session | Date | Domain | Memory | Structure | Ethics |"
+            echo "|---------|------|--------|--------|-----------|--------|"
+            i=1
+            while [ $i -le 12 ]; do
+              printf '| S%s | 2026-06-%02d | general | correction, save | plan, follow | l0 |\n' "$i" "$i"
+              i=$((i+1))
+            done
+          } > "$H/memory/session-log.md"
+          echo "===== acs-check.sh direct run ====="
+          set +e
+          TRELLIS_HOME="$H" bash "$H/scripts/acs-check.sh" 2>&1
+          echo "===== EXIT CODE: $? ====="
+          set -e
+          awk --version 2>&1 | head -1 || awk -W version 2>&1 | head -1 || true
           echo "--- bash version ---"
           bash --version | head -1
 
