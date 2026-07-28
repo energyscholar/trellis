@@ -235,7 +235,7 @@ if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
 fi
 frag_score="0.00"
 if [ "$indexed" -gt 0 ] 2>/dev/null; then
-    frag_score=$(echo "scale=2; $fragmentation / $indexed" | bc 2>/dev/null || echo "0.00")
+    frag_score=$(awk -v n="$fragmentation" -v d="$indexed" 'BEGIN { printf "%.2f", n/d }')
 fi
 if [ "$fragmentation" -gt 0 ]; then
     echo "  fragmentation: $frag_score  [HIGH]"
