@@ -21,6 +21,16 @@ fi
 
 cd "$TRELLIS"
 
+# Read config values (grep/sed — no yq dependency)
+config="$TRELLIS/config.yaml"
+get_config() {
+    local key="$1" default="$2"
+    grep -E "^\s*${key}:" "$config" 2>/dev/null | head -1 | sed "s/.*${key}:[[:space:]]*//; s/[[:space:]]*#.*//" | tr -d '\r' || echo "$default"
+}
+
+memory_index_cap=$(get_config "memory_index_cap" "200")
+compression_trigger=$(get_config "compression_trigger" "180")
+
 # DISTRIBUTION REPO GUARD: refuse to sync if this is the distribution repo
 if [ -f "$TRELLIS/.trellis-distribution" ]; then
     echo "REFUSED: This is the Trellis distribution repo, not your install." >&2
@@ -81,8 +91,8 @@ file_mtime_epoch() {
 if ! $QUICK; then
     # Health warnings
     if [ -f "$TRELLIS/memory/MEMORY.md" ]; then
-        LINES=$(wc -l < "$TRELLIS/memory/MEMORY.md")
-        [ "$LINES" -ge 180 ] && echo "WARNING: MEMORY.md is $LINES lines (cap: 200)" && WARNINGS=$((WARNINGS+1))
+        LINES=$(wc -l < "$TRELLIS/memory/MEMORY.md" | tr -d ' ')
+        [ "$LINES" -ge "$compression_trigger" ] && echo "WARNING: MEMORY.md is $LINES lines (cap: $memory_index_cap)" && WARNINGS=$((WARNINGS+1))
     fi
 
     # CRLF detection
