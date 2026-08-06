@@ -1,0 +1,10 @@
+# tests/allowed-skips.txt — the register of sanctioned skips.
+#
+# A test may only skip for a reason listed here. Each non-comment line is the
+# exact text a test emits after "SKIP: ". run-all.sh --report hard-fails on
+# any surfaced skip whose reason is not on this list, so a skip cannot quietly
+# accumulate: adding one is an edit to this file, visible in review.
+#
+# Format: one reason per line, matched literally against the emitted text.
+#
+# (empty — no test currently skips)

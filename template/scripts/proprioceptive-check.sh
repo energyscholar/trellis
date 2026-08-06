@@ -28,16 +28,23 @@ if [ ! -d "$TRELLIS" ]; then
     exit 0
 fi
 
-# Read config values (grep/sed — no yq dependency)
+# Read config values (grep/awk — no yq dependency). One shared reader: see
+# lib/config.sh for why five local copies had to go. This script is otherwise
+# fail-open, but a missing reader is not a condition to proceed through: it
+# would mean silently sensing a config that is not the one on disk.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -f "$SCRIPT_DIR/lib/config.sh" ]; then
+    echo "FATAL: missing $SCRIPT_DIR/lib/config.sh" >&2
+    echo "Config cannot be read. Refusing to run on default values." >&2
+    echo "Fix: cp -r <trellis-repo>/template/scripts/ \"$TRELLIS/scripts/\"" >&2
+    exit 1
+fi
+. "$SCRIPT_DIR/lib/config.sh"
 config="$TRELLIS/config.yaml"
-get_config() {
-    local key="$1" default="$2"
-    grep -E "^\s*${key}:" "$config" 2>/dev/null | head -1 | sed "s/.*${key}:[[:space:]]*//; s/[[:space:]]*#.*//" | tr -d '\r' || echo "$default"
-}
 
 memory_index_cap=$(get_config "memory_index_cap" "200")
-db_enabled=$(get_config "enabled" "true")
-db_path="$TRELLIS/$(get_config "path" "trellis.db")"
+db_enabled=$(get_config "database.enabled" "true")
+db_path="$TRELLIS/$(get_config "database.path" "trellis.db")"
 
 # --- Determine mode: DB or flat-file ---
 use_db=false
