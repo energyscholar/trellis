@@ -39,19 +39,56 @@ hash_sha256() {
 }
 
 # --- Staleness check ---
+#
+# THE KEY MUST COVER THE PIPELINE, NOT JUST ITS INPUT.
+#
+# This used to hash memory/*.md and nothing else, so every part of the machine
+# that TRANSFORMS memory into the database was outside the staleness key.
+# Measured: change db/schema.sql and run --if-stale, and you get silence and
+# exit 0 — no rebuild. The consequence is not cosmetic. Ship a schema column, a
+# new view or a parser change to an existing install and none of it installs,
+# because the memory files did not move. The check written to detect the new
+# condition then reports zero occurrences — green — having never been built.
+#
+# So the key is memory content AND pipeline content. A product change to either
+# forces exactly one rebuild, and the next --if-stale is a no-op again.
 compute_memory_checksum() {
     hash_sha256 "$TRELLIS"/memory/*.md 2>/dev/null | sort | hash_sha256 | awk '{print $1}'
 }
 
+compute_pipeline_checksum() {
+    local f
+    for f in "${DB_DIR}/schema.sql" "${DB_DIR}/views.sql" \
+             "${SCRIPT_DIR}/ingest-memories.sh" "${SCRIPT_DIR}/rebuild-db.sh"; do
+        [ -f "$f" ] || continue
+        hash_sha256 "$f" 2>/dev/null | awk '{print $1}'
+    done | sort | hash_sha256 | awk '{print $1}'
+}
+
+compute_staleness_key() {
+    printf 'memory:%s\npipeline:%s\n' \
+        "$(compute_memory_checksum)" "$(compute_pipeline_checksum)" \
+        | hash_sha256 | awk '{print $1}'
+}
+
 if [ "${1:-}" = "--if-stale" ]; then
-    current_checksum=$(compute_memory_checksum)
-    if [ -f "$DB" ] && [ -f "$DB_CHECKSUM" ]; then
+    current_checksum=$(compute_staleness_key)
+    if [ ! -f "$DB" ]; then
+        echo "DB stale (no database at $DB). Building..."
+    elif [ ! -f "$DB_CHECKSUM" ]; then
+        echo "DB stale (no staleness stamp at $DB_CHECKSUM). Rebuilding..."
+    else
         stored_checksum=$(cat "$DB_CHECKSUM" 2>/dev/null || echo "")
         if [ "$current_checksum" = "$stored_checksum" ]; then
+            # A decision NOT to act is still a decision, and it says so. The
+            # silent exit 0 this replaces was indistinguishable from a rebuild
+            # that ran, from a crash, and from a staleness key that had gone
+            # blind to the thing that changed.
+            echo "db: fresh (memory + pipeline unchanged) — no rebuild"
             exit 0
         fi
+        echo "DB stale (memory files or pipeline changed). Rebuilding..."
     fi
-    echo "DB stale (memory files changed). Rebuilding..."
 fi
 
 cleanup() { rm -f "$DB_NEW" "${DB_NEW}-shm" "${DB_NEW}-wal"; }
@@ -82,6 +119,30 @@ sqlite3 "$DB_NEW" < "${DB_DIR}/views.sql"
 # Regenerate first. This makes that failure structurally impossible.
 #-----------------------------------------------------------------------------
 _TR_INGEST="${SCRIPT_DIR}/ingest-memories.sh"
+
+# run_ingest LABEL COMMAND... — run one ingest pass and SHOW WHAT IT SAID.
+# These calls used to end in `>/dev/null 2>&1 || true`, which threw away
+# ingest's own "SKIP: <file> — no type" and "PII WARNING" lines. A memory file
+# skipped for a malformed frontmatter block was therefore absent from the
+# database while both the file and the rebuild looked perfectly healthy.
+# Every line is prefixed, so a SKIP from ingest cannot be mistaken by the test
+# runner for a SKIP emitted by a test.
+run_ingest() {
+    local label="$1"
+    shift
+    local out rc=0
+    out=$("$@" 2>&1) || rc=$?
+    if [ -n "$out" ]; then
+        printf '%s\n' "$out" | while IFS= read -r _line; do
+            printf 'rebuild-db: ingest[%s]: %s\n' "$label" "$_line"
+        done
+    fi
+    if [ "$rc" -ne 0 ]; then
+        echo "rebuild-db: ingest[$label] exited $rc — the $label snapshot was NOT regenerated" >&2
+    fi
+    return 0
+}
+
 if [ -x "$_TR_INGEST" ]; then
     _TR_STALE=0
     for _m in "$TRELLIS"/memory/*.md; do
@@ -95,19 +156,31 @@ if [ -x "$_TR_INGEST" ]; then
         echo "rebuild-db: memory is newer than the data snapshot. Regenerating from markdown."
         # NOTE: regenerate ONLY where markdown is the superset. If rows exist
         # only in SQL, extract them to markdown FIRST — or this DELETES them.
-        "$_TR_INGEST" --type feedback  --glob "memory/feedback-*.md"  --output scripts/db/data-feedback.sql   >/dev/null 2>&1 || true
-        "$_TR_INGEST" --type project   --glob "memory/project-*.md"   --output scripts/db/data-projects.sql   >/dev/null 2>&1 || true
-        "$_TR_INGEST" --type reference --glob "memory/reference-*.md" --output scripts/db/data-references.sql >/dev/null 2>&1 || true
-        "$_TR_INGEST" --type user      --glob "memory/user-*.md"      --output scripts/db/data-user.sql       >/dev/null 2>&1 || true
+        run_ingest feedback   "$_TR_INGEST" --type feedback  --glob "memory/feedback-*.md"  --output scripts/db/data-feedback.sql
+        run_ingest projects   "$_TR_INGEST" --type project   --glob "memory/project-*.md"   --output scripts/db/data-projects.sql
+        run_ingest references "$_TR_INGEST" --type reference --glob "memory/reference-*.md" --output scripts/db/data-references.sql
+        run_ingest user       "$_TR_INGEST" --type user      --glob "memory/user-*.md"      --output scripts/db/data-user.sql
         echo "rebuild-db: snapshot regenerated from markdown."
     fi
 fi
 
 # Step 3: Load data (if data scripts exist)
+#
+# This glob is what carries every table that has no other source across a
+# rebuild, health_snapshots included — see scripts/lib/health-seed.sh. Loading
+# nothing is a legitimate state (a fresh install) but never a silent one.
+_TR_SEEDS=0
 for f in "${SCRIPT_DIR}"/db/data-*.sql; do
     [ -f "$f" ] || continue
     sqlite3 "$DB_NEW" < "$f"
+    _TR_SEEDS=$((_TR_SEEDS + 1))
 done
+if [ "$_TR_SEEDS" -eq 0 ]; then
+    echo "rebuild-db: no db/data-*.sql seeds found — building from schema only (tables that have no markdown source will be EMPTY)"
+else
+    _TR_HEALTH=$(sqlite3 "$DB_NEW" "SELECT COUNT(*) FROM health_snapshots;" 2>/dev/null || echo 0)
+    echo "rebuild-db: loaded ${_TR_SEEDS} seed file(s); health history: ${_TR_HEALTH} snapshot(s)"
+fi
 
 # Step 4: Populate FTS5
 sqlite3 "$DB_NEW" <<'FTS'
@@ -214,7 +287,9 @@ if [ "$final_integrity" != "ok" ] || [ "$final_tables" -lt 15 ]; then
 fi
 rm -f "$DB_BAK"
 
-# Step 9: Stamp memory checksum so --if-stale knows this build is fresh
-compute_memory_checksum > "$DB_CHECKSUM"
+# Step 9: Stamp the staleness key (memory AND pipeline) so --if-stale knows
+# this build is fresh. Stamping only the memory half is what let a schema
+# change sit uninstalled forever.
+compute_staleness_key > "$DB_CHECKSUM"
 
 echo "Rebuild complete: $DB (${final_tables} tables, integrity OK)"

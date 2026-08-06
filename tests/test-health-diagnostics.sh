@@ -2,6 +2,12 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# Sourced for skip_test alone: this file predates the assertion harness and
+# keeps its own exit-on-failure style. What it must NOT keep is a bare
+# `if command -v sqlite3` around a whole check — that is a skip the runner
+# cannot see, and a skip nobody sees is indistinguishable from a check that ran.
+. "$(cd "$(dirname "$0")" && pwd)/lib/guard.sh"
+
 FIXTURE=$(mktemp -d)
 trap 'rm -rf "$FIXTURE"' EXIT
 
@@ -88,6 +94,8 @@ if command -v sqlite3 >/dev/null 2>&1; then
         echo "$proprio_output" >&2
         exit 1
     }
+else
+    skip_test "sqlite3 absent: proprioceptive empty-health-view fallback not exercised"
 fi
 
 # memory-sync warnings must use configured trigger and cap.

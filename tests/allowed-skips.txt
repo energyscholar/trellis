@@ -7,4 +7,5 @@
 #
 # Format: one reason per line, matched literally against the emitted text.
 #
-# (empty — no test currently skips)
+sqlite3 absent: proprioceptive empty-health-view fallback not exercised
+sqlite3 absent: rebuild-db.sh cannot be exercised
