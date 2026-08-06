@@ -9,8 +9,17 @@ resolve_trellis_home() {
 TRELLIS="$(resolve_trellis_home)"
 [ -d "$TRELLIS" ] || { echo "Trellis not found at $TRELLIS" >&2; exit 0; }
 
+# One shared config reader: see lib/config.sh for why five local copies had
+# to go.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -f "$SCRIPT_DIR/lib/config.sh" ]; then
+    echo "FATAL: missing $SCRIPT_DIR/lib/config.sh" >&2
+    echo "Config cannot be read. Refusing to run on default values." >&2
+    echo "Fix: cp -r <trellis-repo>/template/scripts/ \"$TRELLIS/scripts/\"" >&2
+    exit 1
+fi
+. "$SCRIPT_DIR/lib/config.sh"
 config="$TRELLIS/config.yaml"
-get_config() { local v; v=$(grep -E "^\s*${1}:" "$config" 2>/dev/null | head -1 | sed "s/.*${1}:[[:space:]]*//; s/[[:space:]]*#.*//" | tr -d '\r') || true; echo "${v:-$2}"; }
 issues=()
 version=$(get_config "version" "unknown")
 platform=$(get_config "type" "unknown")

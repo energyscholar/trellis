@@ -19,13 +19,18 @@ if [ ! -d "$TRELLIS" ]; then
     exit 1
 fi
 
+# One shared config reader: see lib/config.sh for why five local copies had
+# to go.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -f "$SCRIPT_DIR/lib/config.sh" ]; then
+    echo "FATAL: missing $SCRIPT_DIR/lib/config.sh" >&2
+    echo "Config cannot be read. Refusing to run on default values." >&2
+    echo "Fix: cp -r <trellis-repo>/template/scripts/ \"$TRELLIS/scripts/\"" >&2
+    exit 1
+fi
+. "$SCRIPT_DIR/lib/config.sh"
 config="$TRELLIS/config.yaml"
 session_log="$TRELLIS/memory/session-log.md"
-
-get_config() {
-    local key="$1" default="$2"
-    grep -E "^\s*${key}:" "$config" 2>/dev/null | head -1 | sed "s/.*${key}:[[:space:]]*//; s/[[:space:]]*#.*//" | tr -d '\r' || echo "$default"
-}
 
 acs_window=$(get_config "acs_window" "20")
 acs_min_sessions="${ACS_MIN_SESSIONS:-$(get_config "acs_min_sessions" "10")}"

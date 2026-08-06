@@ -19,12 +19,17 @@ if [ ! -d "$TRELLIS" ]; then
     exit 1
 fi
 
-# Read config values (grep/sed — no yq dependency)
+# Read config values (grep/awk — no yq dependency). One shared reader: see
+# lib/config.sh for why five local copies had to go.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -f "$SCRIPT_DIR/lib/config.sh" ]; then
+    echo "FATAL: missing $SCRIPT_DIR/lib/config.sh" >&2
+    echo "Config cannot be read. Refusing to run on default values." >&2
+    echo "Fix: cp -r <trellis-repo>/template/scripts/ \"$TRELLIS/scripts/\"" >&2
+    exit 1
+fi
+. "$SCRIPT_DIR/lib/config.sh"
 config="$TRELLIS/config.yaml"
-get_config() {
-    local key="$1" default="$2"
-    grep -E "^\s*${key}:" "$config" 2>/dev/null | head -1 | sed "s/.*${key}:[[:space:]]*//; s/[[:space:]]*#.*//" | tr -d '\r' || echo "$default"
-}
 
 memory_index_cap=$(get_config "memory_index_cap" "200")
 pressure_warn=$(get_config "pressure_warn" "0.9")
@@ -275,8 +280,8 @@ drift="0.00"
 echo "  drift:         $drift  [OK]"
 
 # SQLite acceleration layer (auto-rebuild if stale)
-db_enabled=$(get_config "enabled" "true")
-db_path="$TRELLIS/$(get_config "path" "trellis.db")"
+db_enabled=$(get_config "database.enabled" "true")
+db_path="$TRELLIS/$(get_config "database.path" "trellis.db")"
 if [ "$db_enabled" = "true" ] && [ -x "$TRELLIS/scripts/rebuild-db.sh" ]; then
     bash "$TRELLIS/scripts/rebuild-db.sh" --if-stale 2>/dev/null || true
 fi

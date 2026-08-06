@@ -10,6 +10,11 @@ cp "$REPO/template/scripts/health-check.sh" "$FIXTURE/scripts/health-check.sh"
 cp "$REPO/template/scripts/proprioceptive-check.sh" "$FIXTURE/scripts/proprioceptive-check.sh"
 cp "$REPO/template/scripts/memory-sync.sh" "$FIXTURE/scripts/memory-sync.sh"
 cp "$REPO/template/scripts/acs-check.sh" "$FIXTURE/scripts/acs-check.sh"
+# The scripts read config through scripts/lib/config.sh and refuse to run
+# without it, rather than falling back to defaults. A fixture that copies
+# scripts one by one has to copy the reader too.
+mkdir -p "$FIXTURE/scripts/lib"
+cp "$REPO/template/scripts/lib/config.sh" "$FIXTURE/scripts/lib/config.sh"
 chmod +x "$FIXTURE/scripts/"*.sh
 
 write_config() {
