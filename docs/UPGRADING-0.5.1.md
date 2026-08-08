@@ -173,7 +173,7 @@ git -C ~/.trellis reset --hard <the "Pre-update snapshot" commit>
 
 - **#27** — the plugin/script destruction described in §2. Not fixed in 0.5.1.
 - **#12** — config keys are not backfilled. §3 is the manual workaround.
-- **#26** — `schema.sql` needs a sqlite3 built with math functions and FTS5. If
+- **#25** — `schema.sql` needs a sqlite3 built with math functions and FTS5. If
   yours lacks them the database silently fails to build and surfaces as
   unrelated-looking test failures. Check with:
   `sqlite3 :memory: "select ln(2);"` and
