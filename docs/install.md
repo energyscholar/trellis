@@ -180,9 +180,18 @@ from flat files each session via `scripts/rebuild-db.sh`.
 To check for updates: `scripts/trellis-update.sh --check`
 To apply: `scripts/trellis-update.sh`
 
-The update script overwrites system files (scripts, plugins, directives template) but
-never touches user data (memory files, config, profiles). New config keys are handled
-via script defaults — existing config.yaml files continue to work without modification.
+**Read [docs/update.md](update.md) before updating an established install.** Two
+things there are easy to lose work to, and both used to be described incorrectly
+on this page:
+
+- `scripts/` and `plugins/` are **replaced wholesale and the backup deleted**, so
+  any plugin or script you wrote yourself is destroyed (#27). Back them up first.
+- **New config keys are not backfilled** (#12). A release that changes the
+  Dignity Net canon pin will leave `health-check.sh` reporting DRIFTED on every
+  run until you edit `config.yaml` by hand.
+
+`memory/` and `profiles/` are untouched — your memories, session log, corrections
+and profiles are safe.
 
 ## Restore from Backup
 

@@ -59,6 +59,25 @@ git clone git@github.com:YOU/my-trellis.git ~/.trellis
 
 Then tell your AI: "Wire Trellis." Your memories are already there.
 
+### Update
+
+Paste into your AI coding assistant:
+
+> Update my Trellis install, following https://github.com/energyscholar/trellis/blob/main/docs/update.md
+
+Or run it yourself:
+
+```bash
+bash ~/.trellis/scripts/trellis-update.sh --check    # report only
+bash ~/.trellis/scripts/trellis-update.sh            # apply
+```
+
+⚠ **Read [docs/update.md](docs/update.md) first if your install is established.**
+`scripts/` and `plugins/` are replaced wholesale and the backup deleted, so
+plugins you wrote yourself are destroyed; and new config keys are not backfilled,
+which can leave `health-check.sh` reporting DRIFTED until you edit `config.yaml`
+by hand. `memory/` and `profiles/` are never touched.
+
 ---
 
 ## How It Works
