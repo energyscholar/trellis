@@ -12,6 +12,39 @@ describes the *mechanism*, which does not change between releases.
 
 ---
 
+## 0. Before you start — check what version you are on
+
+The update path branches on this, so establish it first:
+
+```bash
+grep '^version:' ~/.trellis/config.yaml
+```
+
+**No output — there is no `version:` key.** The updater will exit **1 with no
+message at all** (`set -euo pipefail` plus a `grep` that matches nothing), and
+nothing will happen. It fails closed, so nothing is damaged, but you get no
+explanation. Add the key and re-run:
+
+```bash
+printf 'version: 0.0.0\n' | cat - ~/.trellis/config.yaml > /tmp/c && mv /tmp/c ~/.trellis/config.yaml
+```
+
+**Version is 0.5.0 or later.** Normal path. Continue to §1.
+
+**Version is older than 0.5.0.** The updater replaces *itself*, so the copy that
+runs is your **old** one, and version stamping plus the final `install-hooks.sh`
+re-arm did not exist before 0.5.0
+([issue #13](https://github.com/energyscholar/trellis/issues/13)). Your first run
+will report success, leave `version:` stale, and — importantly — leave the
+**memory deletion wall unarmed**. Run the updater a **second** time, then confirm:
+
+```bash
+grep '^version:' ~/.trellis/config.yaml                 # must show the new version
+git -C ~/.trellis config core.hooksPath                 # must show scripts/git-hooks
+```
+
+---
+
 ## 1. Check, then update
 
 ```bash
