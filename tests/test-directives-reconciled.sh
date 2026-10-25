@@ -76,6 +76,8 @@ EOF
     assert_eq "" "$missing" "assembled from $label: heading set includes every base heading" || true
     assert_contains "$out" "Session lifecycle (FIRST ACTION" \
         "assembled from $label: the once-drifted step 0 survives assembly" || true
+    assert_contains "$out" 'read `plugins/dignity-net/dignity-net.md` in full before substantive work' \
+        "assembled from $label: active DN requires the complete canonical read" || true
 done
 
 guard_summary

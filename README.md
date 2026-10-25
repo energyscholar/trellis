@@ -22,9 +22,10 @@ Errors you correct once stay corrected.
 Generator implements. No role collapse, no scope creep. Copy-paste is
 the authorization gate between them.
 
-**Ethics** (Dignity Net plugin): Proportional response from mirror to
-refusal. Divergence detection without motive attribution. Storm protocol
-for high-intensity exchanges.
+**Governance** (Dignity Net plugin, ethics axis): The complete Dignity Net
+framework is read at session start and applied as an integrated system.
+It governs conduct and relational handling without replacing the user's or
+agent's established voice.
 
 The topology monitor counts active layers. Below threshold, it warns —
 sub-threshold governance won't produce the stability you installed Trellis for.
@@ -89,7 +90,8 @@ Trellis has no daemon, no process, no server. The AI agent IS the CPU.
 `directives.md` is the instruction set. `protocol.md` is the program.
 
 Every session:
-- **Start:** AI reads `memory/MEMORY.md`, then `corrections.md`
+- **Start:** AI reads `memory/MEMORY.md`, then `corrections.md`; when the
+  Dignity Net plugin is active, it also reads the complete canonical framework
 - **End:** AI updates state, runs `scripts/record-session.sh`, then `scripts/memory-sync.sh`
 
 That's the irreducible loop. Everything else builds on it.
@@ -138,7 +140,7 @@ database holds fewer rows than there are memory files.
 |   +-- corrections.md         Error tracking
 |   +-- *.md                   Individual memories
 +-- plugins/
-|   +-- dignity-net/           Ethics: proportional escalation L0-L5
+|   +-- dignity-net/           Full-stack governance (ethics axis)
 |   +-- triad/                 Structure: Auditor/Generator role separation
 +-- scripts/
 |   +-- memory-sync.sh         Git commit + optional push
@@ -209,9 +211,11 @@ Start at Tier 1. Upgrade when you need it. See [docs/storage-tiers.md](docs/stor
 
 Trellis ships with two governance plugins:
 
-**Dignity Net** (ethics): Designed by Genevieve Prentice. Proportional
-escalation from L0 Mirror through L5 Refusal. Storm protocol for
-high-intensity exchanges.
+**Dignity Net** (full-stack governance, ethics axis): Designed by Genevieve
+Prentice. Trellis reads the complete canonical framework at session start and
+applies its ontology, ethics, diagnostics, response levels, asymmetry test, and
+regulation layer together. Its conduct rules do not replace the user's or
+agent's established voice.
 
 **Triad** (structure): Role separation for human-AI collaboration.
 Auditor plans, Generator implements. Explicit transitions only.
